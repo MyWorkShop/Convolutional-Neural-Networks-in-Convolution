@@ -15,7 +15,7 @@ class ScscnnLayer : public Layer<Dtype> {
 
   explicit ScscnnLayer(const LayerParameter& param)
       : Layer<Dtype>(param) {}
-        virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+        virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "Convolution"; }
