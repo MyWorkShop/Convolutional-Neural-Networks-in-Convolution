@@ -18,7 +18,7 @@ class ScscnnLayer : public Layer<Dtype> {
         virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline const char* type() const { return "Convolution"; }
+  virtual inline const char* type() const { return "Sparse Convolution of Small CNN"; }
 
  protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
