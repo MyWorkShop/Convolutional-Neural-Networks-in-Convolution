@@ -13,32 +13,44 @@ import tensorflow as tf
 FLAGS = None
 
 
+def small_cnn(x,W_fc,b_fc):
+  with tf.name_scope('reshape'):
+    x_image = tf.reshape(x, [-1, 10, 10, 1])
+
+  with tf.name_scope('conv1'):
+    W_conv = weight_variable([5, 5, 1, 8])
+    b_conv = bias_variable([8])
+    h_conv = tf.nn.relu(conv2d(x_image, W_conv) + b_conv)
+
+  with tf.name_scope('pool1'):
+    h_pool = max_pool_2x2(h_conv)
+
+  with tf.name_scope('fc1'):
+    h_pool_flat = tf.reshape(h_pool, [-1, 3 * 3 * 8])
+    y_conv = tf.nn.relu(tf.matmul(h_pool_flat, W_fc) + b_fc)
+
+  return y_conv
+
 def deepnn(x):
   with tf.name_scope('reshape'):
     x_image = tf.reshape(x, [-1, 28, 28, 1])
 
-  # First convolutional layer - maps one grayscale image to 32 feature maps.
   with tf.name_scope('conv1'):
     W_conv1 = weight_variable([5, 5, 1, 32])
     b_conv1 = bias_variable([32])
     h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
 
-  # Pooling layer - downsamples by 2X.
   with tf.name_scope('pool1'):
     h_pool1 = max_pool_2x2(h_conv1)
 
-  # Second convolutional layer -- maps 32 feature maps to 64.
   with tf.name_scope('conv2'):
     W_conv2 = weight_variable([5, 5, 32, 64])
     b_conv2 = bias_variable([64])
     h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 
-  # Second pooling layer.
   with tf.name_scope('pool2'):
     h_pool2 = max_pool_2x2(h_conv2)
 
-  # Fully connected layer 1 -- after 2 round of downsampling, our 28x28 image
-  # is down to 7x7x64 feature maps -- maps this to 1024 features.
   with tf.name_scope('fc1'):
     W_fc1 = weight_variable([7 * 7 * 64, 1024])
     b_fc1 = bias_variable([1024])
@@ -46,13 +58,10 @@ def deepnn(x):
     h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
     h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
-  # Dropout - controls the complexity of the model, prevents co-adaptation of
-  # features.
   with tf.name_scope('dropout'):
     keep_prob = tf.placeholder(tf.float32)
     h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-  # Map the 1024 features to 10 classes, one for each digit
   with tf.name_scope('fc2'):
     W_fc2 = weight_variable([1024, 10])
     b_fc2 = bias_variable([10])
@@ -62,39 +71,60 @@ def deepnn(x):
 
 
 def conv2d(x, W):
-  """conv2d returns a 2d convolution layer with full stride."""
   return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 
 def max_pool_2x2(x):
-  """max_pool_2x2 downsamples a feature map by 2X."""
   return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                         strides=[1, 2, 2, 1], padding='SAME')
 
 
+def scscn(x,num):
+  # Kernal size:
+  a=10
+  b=10
+  # Size of input:
+  input_num=
+  input_m=
+  input_n=
+  # Strides:
+  stride=2;
+  # Output:
+  # a TensorArray of tensor used to storage the output of small_cnn
+  output=tf.TensorArray(tf.float32,
+              num*((input_m-a)/stride+1)*((input_n-b)/stride+1))
+  # weight and bias of the fc layer of the small_cnn
+  Weight_fc = tf.TensorArray(tf.float32,num)
+  Bias_fc = tf.TensorArray(tf.float32,num)
+  for i in range(num):
+    Weight_fc.write(i,weight_variable([3 * 3 * 8, 1]))
+    Bias_fc.write(i,bias_variable([1]))
+    for j in range((input_m-a)/stride+1):
+      for k in range((input_n-b)/stride+1):
+        output.write((i*((input_m-a)/stride+1)+j)*((input_n-b)/stride+1)+k,
+                     small_cnn(tf.slice(x,[0,j*stride,k*stride],[input_num][a][b]),
+                                 Weight_fc.read(i),Bias_fc.read(i))
+# return the concated and reshaped data of output
+  return tf.reshape(output.concat(),
+              [num,((input_m-a)/stride+1),((input_n-b)/stride+1)])
+
 def weight_variable(shape):
-  """weight_variable generates a weight variable of a given shape."""
   initial = tf.truncated_normal(shape, stddev=0.1)
   return tf.Variable(initial)
 
 
 def bias_variable(shape):
-  """bias_variable generates a bias variable of a given shape."""
   initial = tf.constant(0.1, shape=shape)
   return tf.Variable(initial)
 
 
 def main(_):
-  # Import data
   mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
 
-  # Create the model
   x = tf.placeholder(tf.float32, [None, 784])
 
-  # Define loss and optimizer
   y_ = tf.placeholder(tf.float32, [None, 10])
 
-  # Build the graph for the deep net
   y_conv, keep_prob = deepnn(x)
 
   with tf.name_scope('loss'):
