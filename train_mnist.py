@@ -84,6 +84,7 @@ def scscn(x,num):
   input_num=tf.shape(x)[2]
   input_m=tf.shape(x)[0]
   input_n=tf.shape(x)[1]
+  print('[input|SCSCN]num %d,m %d,n %d' % (input_num, input_m, input_n))
   # Strides:
   stride=2;
   # Output:
@@ -100,9 +101,9 @@ def scscn(x,num):
       for k in range((input_n-b)/stride+1):
         output.write((i*((input_m-a)/stride+1)+j)*((input_n-b)/stride+1)+k,
                      small_cnn(tf.slice(x,[j*stride,k*stride,0],[a,b,input_num]),
-                                 Weight_fc.read(i),Bias_fc.read(i))
-# return the concated and reshaped data of output
-  return tf.reshape(output.concat(),
+                                 Weight_fc.read(i),Bias_fc.read(i)))
+  # return the concated and reshaped data of output
+  return reshape(output.concat(),
               [num,((input_m-a)/stride+1),((input_n-b)/stride+1)])
 
 def weight_variable(shape):
@@ -116,7 +117,7 @@ def bias_variable(shape):
 
 
 def main(_):
-  mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
+  mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
   x = tf.placeholder(tf.float32, [None, 784])
 
