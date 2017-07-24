@@ -15,7 +15,7 @@ FLAGS = None
 
 def small_cnn(x,W_fc,b_fc):
   with tf.name_scope('conv1'):
-    W_conv = weight_variable([5, 5, tf.shape(x)[2], 8])
+    W_conv = weight_variable([5, 5, x.get_shape().as_list()[3], 8])
     b_conv = bias_variable([8])
     h_conv = tf.nn.relu(conv2d(x, W_conv) + b_conv)
 
@@ -32,18 +32,22 @@ def deepnn(x):
   with tf.name_scope('reshape'):
     x_image = tf.reshape(x, [-1, 28, 28, 1])
 
-  with tf.name_scope('conv1'):
-    W_conv1 = weight_variable([5, 5, 1, 32])
-    b_conv1 = bias_variable([32])
-    h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
+  # with tf.name_scope('conv1'):
+  #   W_conv1 = weight_variable([5, 5, 1, 32])
+  #   b_conv1 = bias_variable([32])
+  #   h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
 
-  with tf.name_scope('pool1'):
-    h_pool1 = max_pool_2x2(h_conv1)
+  # with tf.name_scope('pool1'):
+  #   h_pool1 = max_pool_2x2(h_conv1)
+
+  with tf.name_scope('SCSCN'):
+    h_scscn= scscn(x_image,32)
 
   with tf.name_scope('conv2'):
     W_conv2 = weight_variable([5, 5, 32, 64])
     b_conv2 = bias_variable([64])
-    h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
+    # h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
+    h_conv2 = tf.nn.relu(conv2d(h_scscn, W_conv2) + b_conv2)
 
   with tf.name_scope('pool2'):
     h_pool2 = max_pool_2x2(h_conv2)
@@ -81,30 +85,30 @@ def scscn(x,num):
   a=10
   b=10
   # Size of input:
-  input_num=tf.shape(x)[2]
-  input_m=tf.shape(x)[0]
-  input_n=tf.shape(x)[1]
+  input_num=x.get_shape().as_list()[3]
+  input_m=x.get_shape().as_list()[1]
+  input_n=x.get_shape().as_list()[2]
   print('[input|SCSCN]num %d,m %d,n %d' % (input_num, input_m, input_n))
   # Strides:
   stride=2;
   # Output:
   # a TensorArray of tensor used to storage the output of small_cnn
   output=tf.TensorArray(tf.float32,
-              num*((input_m-a)/stride+1)*((input_n-b)/stride+1))
+              int(num*((input_m-a)/stride+1)*((input_n-b)/stride+1)))
   # weight and bias of the fc layer of the small_cnn
   Weight_fc = tf.TensorArray(tf.float32,num)
   Bias_fc = tf.TensorArray(tf.float32,num)
   for i in range(num):
-    Weight_fc.write(i,weight_variable([3 * 3 * 8, 1]))
-    Bias_fc.write(i,bias_variable([1]))
-    for j in range((input_m-a)/stride+1):
-      for k in range((input_n-b)/stride+1):
-        output.write((i*((input_m-a)/stride+1)+j)*((input_n-b)/stride+1)+k,
-                     small_cnn(tf.slice(x,[j*stride,k*stride,0],[a,b,input_num]),
-                                 Weight_fc.read(i),Bias_fc.read(i)))
+    Weight_fc.write(i,weight_variable([3 * 3 * 8, 1])).mark_used()
+    Bias_fc.write(i,bias_variable([1])).mark_used()
+    for j in range(int((input_m-a)/stride+1)):
+      for k in range(int((input_n-b)/stride+1)):
+        output.write(int((j*((input_n-b)/stride+1)+k)*num+i),
+                     small_cnn(tf.slice(x,[0,j*stride,k*stride,0],[1,a,b,input_num]),
+                                 Weight_fc.read(i),Bias_fc.read(i))).mark_used()
   # return the concated and reshaped data of output
-  return reshape(output.concat(),
-              [num,((input_m-a)/stride+1),((input_n-b)/stride+1)])
+  return tf.reshape(output.concat(),
+              [1,int(((input_m-a)/stride+1)),int(((input_n-b)/stride+1)),num])
 
 def weight_variable(shape):
   initial = tf.truncated_normal(shape, stddev=0.1)
