@@ -14,13 +14,10 @@ FLAGS = None
 
 
 def small_cnn(x,W_fc,b_fc):
-  with tf.name_scope('reshape'):
-    x_image = tf.reshape(x, [-1, 10, 10, 1])
-
   with tf.name_scope('conv1'):
-    W_conv = weight_variable([5, 5, 1, 8])
+    W_conv = weight_variable([5, 5, tf.shape(x)[2], 8])
     b_conv = bias_variable([8])
-    h_conv = tf.nn.relu(conv2d(x_image, W_conv) + b_conv)
+    h_conv = tf.nn.relu(conv2d(x, W_conv) + b_conv)
 
   with tf.name_scope('pool1'):
     h_pool = max_pool_2x2(h_conv)
@@ -84,9 +81,9 @@ def scscn(x,num):
   a=10
   b=10
   # Size of input:
-  input_num=
-  input_m=
-  input_n=
+  input_num=tf.shape(x)[2]
+  input_m=tf.shape(x)[0]
+  input_n=tf.shape(x)[1]
   # Strides:
   stride=2;
   # Output:
@@ -102,7 +99,7 @@ def scscn(x,num):
     for j in range((input_m-a)/stride+1):
       for k in range((input_n-b)/stride+1):
         output.write((i*((input_m-a)/stride+1)+j)*((input_n-b)/stride+1)+k,
-                     small_cnn(tf.slice(x,[0,j*stride,k*stride],[input_num][a][b]),
+                     small_cnn(tf.slice(x,[j*stride,k*stride,0],[a,b,input_num]),
                                  Weight_fc.read(i),Bias_fc.read(i))
 # return the concated and reshaped data of output
   return tf.reshape(output.concat(),
