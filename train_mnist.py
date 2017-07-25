@@ -12,51 +12,43 @@ import tensorflow as tf
 
 FLAGS = None
 
-
-def small_cnn(x,W_fc,b_fc):
+# Small CNN:
+# convolution fliter of SCSCN
+def small_cnn(x,W_fc,b_fc,num_conv):
   with tf.name_scope('conv1'):
-    W_conv = weight_variable([5, 5, x.get_shape().as_list()[3], 8])
-    b_conv = bias_variable([8])
+    W_conv = weight_variable([5, 5, x.get_shape().as_list()[3], num_conv])
+    b_conv = bias_variable([num_conv])
     h_conv = tf.nn.relu(conv2d(x, W_conv) + b_conv)
 
   with tf.name_scope('pool1'):
     h_pool = max_pool_2x2(h_conv)
 
   with tf.name_scope('fc1'):
-    h_pool_flat = tf.reshape(h_pool, [-1, 3 * 3 * 8])
-    y_conv = tf.nn.relu(tf.matmul(h_pool_flat, W_fc) + b_fc)
+    h_pool_flat = tf.reshape(h_pool, [-1, 5 * 5 * num_conv])
+    y_fc = tf.nn.relu(tf.matmul(h_pool_flat, W_fc) + b_fc)
 
-  return y_conv
+  return y_fc
 
 def deepnn(x):
   with tf.name_scope('reshape'):
     x_image = tf.reshape(x, [-1, 28, 28, 1])
 
-  # with tf.name_scope('conv1'):
-  #   W_conv1 = weight_variable([5, 5, 1, 32])
-  #   b_conv1 = bias_variable([32])
-  #   h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
-
-  # with tf.name_scope('pool1'):
-  #   h_pool1 = max_pool_2x2(h_conv1)
-
   with tf.name_scope('SCSCN'):
-    h_scscn= scscn(x_image,32)
+    h_scscn= scscn(x_image, 8, 8)
 
   with tf.name_scope('conv2'):
-    W_conv2 = weight_variable([5, 5, 32, 64])
-    b_conv2 = bias_variable([64])
-    # h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
+    W_conv2 = weight_variable([5, 5, 8, 32])
+    b_conv2 = bias_variable([32])
     h_conv2 = tf.nn.relu(conv2d(h_scscn, W_conv2) + b_conv2)
 
   with tf.name_scope('pool2'):
     h_pool2 = max_pool_2x2(h_conv2)
 
   with tf.name_scope('fc1'):
-    W_fc1 = weight_variable([7 * 7 * 64, 1024])
+    W_fc1 = weight_variable([5 * 5 * 32, 1024])
     b_fc1 = bias_variable([1024])
 
-    h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
+    h_pool2_flat = tf.reshape(h_pool2, [-1, 5*5*32])
     h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
   with tf.name_scope('dropout'):
@@ -80,35 +72,51 @@ def max_pool_2x2(x):
                         strides=[1, 2, 2, 1], padding='SAME')
 
 
-def scscn(x,num):
+def scscn(x,num,num_conv):
   # Kernal size:
   a=10
   b=10
+
   # Size of input:
   input_num=x.get_shape().as_list()[3]
   input_m=x.get_shape().as_list()[1]
   input_n=x.get_shape().as_list()[2]
   print('[input|SCSCN]num %d,m %d,n %d' % (input_num, input_m, input_n))
+
   # Strides:
-  stride=2;
+  stride=2
+
+  # Size:
+  m=int((input_m-a)/stride+1)
+  n=int((input_n-b)/stride+1)
+
   # Output:
   # a TensorArray of tensor used to storage the output of small_cnn
   output=tf.TensorArray(tf.float32,
-              int(num*((input_m-a)/stride+1)*((input_n-b)/stride+1)))
+              int(num*m*n))
+
   # weight and bias of the fc layer of the small_cnn
-  Weight_fc = tf.TensorArray(tf.float32,num)
-  Bias_fc = tf.TensorArray(tf.float32,num)
+  Weight_fc = tf.TensorArray(tf.float32,num,None,False)
+  Bias_fc = tf.TensorArray(tf.float32,num,None,False)
+
   for i in range(num):
-    Weight_fc.write(i,weight_variable([3 * 3 * 8, 1])).mark_used()
-    Bias_fc.write(i,bias_variable([1])).mark_used()
-    for j in range(int((input_m-a)/stride+1)):
-      for k in range(int((input_n-b)/stride+1)):
-        output.write(int((j*((input_n-b)/stride+1)+k)*num+i),
-                     small_cnn(tf.slice(x,[0,j*stride,k*stride,0],[1,a,b,input_num]),
-                                 Weight_fc.read(i),Bias_fc.read(i))).mark_used()
+    print('[init|SCSCN]i %d' % (i))
+
+    # init of the weight and bias of the fc layer in SCN
+    # these weight and bias are the same in one picture
+    Weight_fc = Weight_fc.write(i,weight_variable([5 * 5 * num_conv, 1]))
+    Bias_fc = Bias_fc.write(i,bias_variable([1]))
+
+    for j in range(m):
+      for k in range(n):
+        # calculate the output of the convolution fliter
+        output = output.write(int((j*n+k)*num+i),
+                     small_cnn(tf.slice(x, [0,j*stride,k*stride,0], [-1,a,b,input_num]),
+                                 Weight_fc.read(i), Bias_fc.read(i), num_conv))
+  
   # return the concated and reshaped data of output
   return tf.reshape(output.concat(),
-              [1,int(((input_m-a)/stride+1)),int(((input_n-b)/stride+1)),num])
+              [-1,m,n,num])
 
 def weight_variable(shape):
   initial = tf.truncated_normal(shape, stddev=0.1)
@@ -155,6 +163,8 @@ def main(_):
         train_accuracy = accuracy.eval(feed_dict={
             x: batch[0], y_: batch[1], keep_prob: 1.0})
         print('step %d, training accuracy %g' % (i, train_accuracy))
+      if i % 10 == 0:
+        print('step %d' % (i))
       train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
     print('test accuracy %g' % accuracy.eval(feed_dict={
