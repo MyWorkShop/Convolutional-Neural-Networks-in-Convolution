@@ -5,6 +5,7 @@ from __future__ import print_function
 import argparse
 import sys
 import tempfile
+import time
 
 from tensorflow.examples.tutorials.mnist import input_data
 
@@ -44,7 +45,7 @@ def deepnn(x):
         x_image = tf.reshape(x, [-1, 28, 28, 1])
 
     with tf.name_scope('SCSCN'):
-        h_scscn = scscn(x_image, 8, 4)
+        h_scscn = scscn(x_image, 4, 8)
 
     with tf.name_scope('conv2'):
         W_conv2 = weight_variable([5, 5, 32, 64])
@@ -208,20 +209,21 @@ def main(_):
     with tf.Session(config=config) as sess:
 
         sess.run(tf.global_variables_initializer())
-        for i in range(250000):
+        t0 = time.clock()
+        for i in range(400000):
             # Get the data of next batch
-            batch = mnist.train.next_batch(60)
-            # print('step %d' % (i))
-            if i % 250 == 0:
+            batch = mnist.train.next_batch(30)
+            if i % 200 == 0:
                 # Print the accuracy
                 train_accuracy = 0
-                for index in range(25):
+                for index in range(5):
                     accuracy_batch = mnist.test.next_batch(400)
                     train_accuracy += accuracy.eval(feed_dict={
                         x: accuracy_batch[0], y_: accuracy_batch[1], keep_prob: 1.0})
                 print(
-                    'step %d, training accuracy %g' %
-                    (i, train_accuracy / 25))
+                    'step %g, training accuracy %g | speed: %g samples/s' %
+                    (i / 2000, train_accuracy / 5, 30 * 200 / (time.clock() - t0)))
+                t0 = time.clock()
             # Train
             train_step.run(
                 feed_dict={x: batch[0],
