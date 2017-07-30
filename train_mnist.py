@@ -121,32 +121,35 @@ def scscn(x, num, num_conv):
     with tf.name_scope('output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        output = tf.TensorArray(tf.float32,
-                                int(num * m * n))
+        output = []
 
     with tf.name_scope('fliter'):
         for i in range(num):
-
             # print the init state
             print('[init|SCSCN]i %d' % (i))
-
+            output.append([])
             for j in range(m):
+                output[i].append([])
                 for k in range(n):
-
                     # calculate the output of the convolution fliter
                     if ((j == 0)and(k == 0)):
-                        output = output.write(int((k * m + j) * num + i),
-                                              small_cnn(
+                        output[i][j].append(small_cnn(
                             tf.slice(x, [0, j * stride, k * stride, 0],
                                      [-1, a, b, input_num]), num_conv, i, False))
                     else:
-                        output = output.write(int((k * m + j) * num + i),
-                                              small_cnn(
+                        output[i][j].append(small_cnn(
                             tf.slice(x, [0, j * stride, k * stride, 0],
                                      [-1, a, b, input_num]), num_conv, i, True))
 
     # return the concated and reshaped data of output
-    return tf.reshape(output.concat(),
+    for i in range(m):
+        for j in range(n):
+            for k in range(num):
+                if (j == 0)and(k == 0)and(i == 0):
+                    output_ = output[k][i][j]
+                else:
+                    output_ = tf.concat([output_, output[k][i][j]], 0)
+    return tf.reshape(output_,
                       [-1, m, n, num * num_conv])
 
 
