@@ -134,7 +134,7 @@ def scscn(x, num, num_conv):
     with tf.name_scope('output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        output = [ [ [ 0 for i in range(n) ] for j in range(m) ] for k in range(num) ]
+        output = tf.TensorArray('float32', num*m*n)
 
     with tf.name_scope('fliter'):
         for i in range(num):
@@ -145,18 +145,19 @@ def scscn(x, num, num_conv):
                 for k in range(n):
                     # calculate the output of the convolution fliter
                     # if ((j == 0)and(k == 0)):
-                    output[i][j][k] = small_cnn(
-                        tf.slice(x, [0, j * stride, k * stride, 0],
-                                [-1, a, b, input_num]), num_conv, i, j, k, False)
+                    with tf.name_scope('fliter'+str(i)+'.'+str(j)+'.'+str(k)):
+                        output = output.write((i * num + j ) * m + k, small_cnn(
+                            tf.slice(x, [0, j * stride, k * stride, 0],
+                                [-1, a, b, input_num]), num_conv, i, j, k, False))
 
     # return the concated and reshaped data of output
     for i in range(m):
         for j in range(n):
             for k in range(num):
                 if (j == 0)and(k == 0)and(i == 0):
-                    output_ = output[k][i][j]
+                    output_ = output.read((k * num + i ) * m + j)
                 else:
-                    output_ = tf.concat([output_, output[k][i][j]], 1)
+                    output_ = tf.concat([output_, output.read((k * num + i ) * m + j )], 1)
     return tf.reshape(output_,
                       [-1, m, n, num * num_conv])
 
@@ -207,7 +208,10 @@ def main(_):
         accuracy = tf.reduce_mean(correct_prediction)
 
     with tf.name_scope('config'):
-        config = tf.ConfigProto()
+        config = tf.ConfigProto(
+            inter_op_parallelism_threads = 27,
+            intra_op_parallelism_threads = 8
+        )
 
     with tf.name_scope('graph'):
         graph_location = tempfile.mkdtemp()
