@@ -23,9 +23,9 @@ def small_cnn(x, num_conv, id, j, k, reuse):
             [5,
              5,
              x.get_shape().as_list()[3],
-             num_conv],
+             num_conv * 2],
             id, j, k)
-        b_conv1 = bias_variable_([num_conv], id, j, k)
+        b_conv1 = bias_variable_([num_conv * 2], id, j, k)
         h_conv1 = tf.nn.relu(conv2d_(x, W_conv1) + b_conv1)
 
     with tf.variable_scope('avg_pool1'):
@@ -35,20 +35,22 @@ def small_cnn(x, num_conv, id, j, k, reuse):
         W_conv2 = weight_variable_(
             [3,
              3,
-             num_conv,
-             num_conv],
+             num_conv * 2,
+             num_conv * 4],
             id, j, k)
-        b_conv2 = bias_variable_([num_conv], id, j, k)
+        b_conv2 = bias_variable_([num_conv * 4], id, j, k)
         h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 
     with tf.variable_scope('avg_pool2'):
         h_pool2 = avg_pool(h_conv2, 5, 5)
-        y_conv = tf.reshape(h_pool2, [-1, num_conv])
+        h_pool2_flat = tf.reshape(h_pool2, [-1, num_conv * 4])
 
-    # with tf.variable_scope('fc', reuse=reuse):
-        # W_fc = weight_variable_([3 * 3 * num_conv * 2, num_conv], id)
-        # b_fc = bias_variable_([num_conv], id)
-        # y_conv = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc) + b_fc)
+
+    with tf.variable_scope('fc'):
+        W_fc = weight_variable([num_conv * 4, num_conv])
+        b_fc = bias_variable([num_conv])
+
+        y_conv = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc) + b_fc)
 
     return y_conv
 
@@ -58,12 +60,7 @@ def deepnn(x):
         x_image = tf.reshape(x, [-1, 28, 28, 1])
 
     with tf.name_scope('SCSCN'):
-        h_scscn = scscn(x_image, 4, 16)
-
-    with tf.name_scope('conv'):
-        W_conv = weight_variable([3, 3, 64, 64])
-        b_conv = bias_variable([64])
-        h_conv = tf.nn.relu(conv2d_(h_scscn, W_conv) + b_conv)
+        h_scscn = scscn(x_image, 2, 32)
 
     # with tf.variable_scope('pool'):
         # h_pool = max_pool_2x2(h_conv)
@@ -72,8 +69,8 @@ def deepnn(x):
         W_fc1 = weight_variable([7 * 7 * 64, 1024])
         b_fc1 = bias_variable([1024])
 
-        h_pool_flat = tf.reshape(h_conv, [-1, 7 * 7 * 64])
-        h_fc1 = tf.nn.relu(tf.matmul(h_pool_flat, W_fc1) + b_fc1)
+        h_scscn_flat = tf.reshape(h_scscn, [-1, 7 * 7 * 64])
+        h_fc1 = tf.nn.relu(tf.matmul(h_scscn_flat, W_fc1) + b_fc1)
 
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
@@ -104,7 +101,6 @@ def avg_pool(x, m, n):
     return tf.nn.avg_pool(x, ksize=[1, m, n, 1],
                           strides=[1, m, n, 1], padding='SAME')
 
-
 def scscn(x, num, num_conv):
     with tf.name_scope('kernal_size'):
         # Kernal size:
@@ -113,11 +109,11 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 2
+        stride = 3
 
     with tf.name_scope('pad'):
         # pad of input
-        x = tf.pad(x, [[0, 0], [1, 1], [1, 1], [0, 0]])
+        x = tf.pad(x, [[0, 0], [2, 2], [2, 2], [0, 0]])
 
     with tf.name_scope('input_size'):
         # Size of input:
@@ -134,7 +130,7 @@ def scscn(x, num, num_conv):
     with tf.name_scope('output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        output = tf.TensorArray('float32', num*m*n)
+        output = tf.TensorArray('float32', num * m * n)
 
     with tf.name_scope('fliter'):
         for i in range(num):
@@ -144,20 +140,23 @@ def scscn(x, num, num_conv):
             for j in range(m):
                 for k in range(n):
                     # calculate the output of the convolution fliter
-                    # if ((j == 0)and(k == 0)):
-                    with tf.name_scope('fliter'+str(i)+'.'+str(j)+'.'+str(k)):
-                        output = output.write((i * num + j ) * m + k, small_cnn(
-                            tf.slice(x, [0, j * stride, k * stride, 0],
-                                [-1, a, b, input_num]), num_conv, i, j, k, False))
+                    with tf.control_dependencies(None):
+                        print('[output|SCSCN]i %d' % ((i * m + j ) * n + k))
+                        output = output.write((i * m + j ) * n + k,
+                            tf.identity(small_cnn(
+                                tf.identity(
+                                    tf.slice(x, [0, j * stride, k * stride, 0],
+                                        [-1, a, b, input_num])),
+                                            num_conv, i, j, k, False)))
 
     # return the concated and reshaped data of output
     for i in range(m):
         for j in range(n):
             for k in range(num):
                 if (j == 0)and(k == 0)and(i == 0):
-                    output_ = output.read((k * num + i ) * m + j)
+                    output_ = output.read((k * m + i ) * n + j)
                 else:
-                    output_ = tf.concat([output_, output.read((k * num + i ) * m + j )], 1)
+                    output_ = tf.concat([output_, output.read((k * m + i ) * n + j )], 1)
     return tf.reshape(output_,
                       [-1, m, n, num * num_conv])
 
@@ -209,7 +208,7 @@ def main(_):
 
     with tf.name_scope('config'):
         config = tf.ConfigProto(
-            inter_op_parallelism_threads = 27,
+            inter_op_parallelism_threads = 81,
             intra_op_parallelism_threads = 8
         )
 
@@ -230,13 +229,13 @@ def main(_):
             if i % 1000 == 0:
                 # Print the accuracy
                 train_accuracy = 0
-                for index in range(5):
-                    accuracy_batch = mnist.test.next_batch(2000)
+                for index in range(50):
+                    accuracy_batch = mnist.test.next_batch(200)
                     train_accuracy += accuracy.eval(feed_dict={
                         x: accuracy_batch[0], y_: accuracy_batch[1], keep_prob: 1.0})
                 print(
                     'step %g, training accuracy %g | speed: %g samples/s' %
-                    (i / 1000, train_accuracy / 5, 60 * 1000 / (time.clock() - t0)))
+                    (i / 1000, train_accuracy / 50, 60 * 1000 / (time.clock() - t0)))
                 t0 = time.clock()
             # Train
             train_step.run(
