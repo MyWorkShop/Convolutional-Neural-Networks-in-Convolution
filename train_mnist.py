@@ -62,15 +62,20 @@ def deepnn(x):
     with tf.name_scope('SCSCN'):
         h_scscn = scscn(x_image, 2, 32)
 
-    # with tf.variable_scope('pool'):
-        # h_pool = max_pool_2x2(h_conv)
+    with tf.name_scope('conv'):
+        W_conv = weight_variable([3, 3, 64, 64])
+        b_conv = bias_variable([64])
+        h_conv = tf.nn.relu(conv2d(h_scscn, W_conv) + b_conv)
+
+    with tf.variable_scope('pool'):
+        h_pool = max_pool_2x2(h_conv)
 
     with tf.name_scope('fc1'):
         W_fc1 = weight_variable([7 * 7 * 64, 1024])
         b_fc1 = bias_variable([1024])
 
-        h_scscn_flat = tf.reshape(h_scscn, [-1, 7 * 7 * 64])
-        h_fc1 = tf.nn.relu(tf.matmul(h_scscn_flat, W_fc1) + b_fc1)
+        h_pool_flat = tf.reshape(h_pool, [-1, 7 * 7 * 64])
+        h_fc1 = tf.nn.relu(tf.matmul(h_pool_flat, W_fc1) + b_fc1)
 
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
@@ -104,16 +109,16 @@ def avg_pool(x, m, n):
 def scscn(x, num, num_conv):
     with tf.name_scope('kernal_size'):
         # Kernal size:
-        a = 14
-        b = 14
+        a = 10
+        b = 10
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 3
+        stride = 2
 
     with tf.name_scope('pad'):
         # pad of input
-        x = tf.pad(x, [[0, 0], [2, 2], [2, 2], [0, 0]])
+        x = tf.pad(x, [[0, 0], [4, 4], [4, 4], [0, 0]])
 
     with tf.name_scope('input_size'):
         # Size of input:
@@ -172,12 +177,12 @@ def bias_variable(shape):
 
 
 def weight_variable_(shape, id, j, k):
-    return tf.get_variable("weights" + str(id) + str(j) + str(k), shape, None,
+    return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k), shape, None,
                            tf.random_normal_initializer(0, 0.075))
 
 
 def bias_variable_(shape, id, j, k):
-    return tf.get_variable("biases" + str(id) + str(j) + str(k), shape, None,
+    return tf.get_variable("biases" + str(id) + "a" + str(j) + "a" + str(k), shape, None,
                            tf.constant_initializer(0.075))
 
 
