@@ -23,41 +23,30 @@ def small_cnn(x, num_conv, id, j, k):
             [5,
              5,
              x.get_shape().as_list()[3],
-             num_conv],
+             num_conv * 4],
             id, j, k)
-        b_conv1 = bias_variable_([num_conv], id, j, k)
+        b_conv1 = bias_variable_([num_conv * 4], id, j, k)
         h_conv1 = tf.nn.relu(conv2d_(x, W_conv1) + b_conv1)
 
     with tf.variable_scope('conv2'):
         W_conv2 = weight_variable_(
             [5,
              5,
-             num_conv,
-             num_conv * 2],
-            id, j, k)
-        b_conv2 = bias_variable_([num_conv * 2], id, j, k)
-        h_conv2 = tf.nn.relu(conv2d_(h_conv1, W_conv2) + b_conv2)
-
-    with tf.variable_scope('conv3'):
-        W_conv3 = weight_variable_(
-            [5,
-             5,
-             num_conv * 2,
-             num_conv * 4],
-            id, j, k)
-        b_conv3 = bias_variable_([num_conv * 4], id, j, k)
-        h_conv3 = tf.nn.relu(conv2d_(h_conv2, W_conv3) + b_conv3)
-
-    with tf.variable_scope('conv4'):
-        W_conv4 = weight_variable_(
-            [4,
-             4,
              num_conv * 4,
-             num_conv],
+             num_conv * 8],
             id, j, k)
-        b_conv4 = bias_variable_([num_conv], id, j, k)
-        h_conv4 = tf.nn.relu(conv2d_(h_conv3, W_conv4) + b_conv4)
-        y_conv = tf.reshape(h_conv4, [-1, num_conv])
+        b_conv2 = bias_variable_([num_conv * 8], id, j, k)
+        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+
+    with tf.variable_scope('avg_pool2'):
+        h_pool2 = avg_pool(h_conv2, 8, 8)
+        h_pool2_flat = tf.reshape(h_pool2, [-1, num_conv * 8])
+
+    with tf.variable_scope('fc'):
+        W_fc = weight_variable([num_conv * 8, num_conv])
+        b_fc = bias_variable([num_conv])
+
+        y_conv = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc) + b_fc)
 
     return y_conv
 
@@ -70,19 +59,10 @@ def deepnn(x):
         h_scscn = scscn(x_image, 1, 32)
 
     with tf.variable_scope('conv1'):
-        W_conv1 = weight_variable([5, 5, 32, 64])
+        W_conv1 = weight_variable([3, 3, 32, 64])
         b_conv1 = bias_variable([64])
         h_conv1 = tf.nn.relu(conv2d(h_scscn, W_conv1) + b_conv1)
         h_pool1_flat = tf.reshape(h_conv1, [-1, 7 * 7 * 64])
-
-    # with tf.variable_scope('conv1'):
-    #     W_conv1 = weight_variable([5, 5, 32, 64])
-    #     b_conv1 = bias_variable([64])
-    #     h_conv1 = tf.nn.relu(conv2d(h_scscn, W_conv1) + b_conv1)
-    #
-    # with tf.variable_scope('pool1'):
-    #     h_pool1 = max_pool(h_conv1, 2, 2)
-    #     h_pool1_flat = tf.reshape(h_pool1, [-1, 7 * 7 * 64])
 
     with tf.name_scope('fc1'):
         W_fc1 = weight_variable([7 * 7 * 64, 1024])
@@ -112,6 +92,9 @@ def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                           strides=[1, 2, 2, 1], padding='SAME')
 
+def avg_pool_mix(x, m, n):
+    return tf.nn.avg_pool(x, ksize=[1, m, n, 1],
+                          strides=[1, 1, 1, 1], padding='VALID')
 
 def avg_pool(x, m, n):
     return tf.nn.avg_pool(x, ksize=[1, m, n, 1],
@@ -124,8 +107,8 @@ def max_pool(x, m, n):
 def scscn(x, num, num_conv):
     with tf.name_scope('kernal_size'):
         # Kernal size:
-        a = 16
-        b = 16
+        a = 12
+        b = 12
 
     with tf.name_scope('strides'):
         # Strides:
@@ -133,7 +116,7 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('pad'):
         # pad of input
-        padd = 6
+        padd = 4
         x = tf.pad(x, [[0, 0], [padd, padd], [padd, padd], [0, 0]])
 
     with tf.name_scope('input_size'):
@@ -152,27 +135,22 @@ def scscn(x, num, num_conv):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
         output = tf.TensorArray('float32', num * m * n)
-        # w_fc = []
-        # b_fc = []
+        # W_conv3 = []
+        # b_conv3 = []
 
     with tf.name_scope('fliter'):
-        for i in range(num):
-            # print the init state
-            # print('[init|SCSCN]i %d' % (i))
-            # w_fc.append(weight_variable([3, 3, num_conv * 4, num_conv]))
-            # b_fc.append(bias_variable([num_conv]))
-
-            for l in range(m*n):
-                # for k in range(n):
-                j = int(l / n)
-                k = int(l % n)
-                # calculate the output of the convolution fliter
-                output = output.write((i * m + j ) * n + k,
-                            tf.identity(small_cnn(
-                                    tf.slice(x, [0, j * stride, k * stride, 0],
-                                        [-1, a, b, input_num]),
-                                            num_conv, i, j, k)))
-                                            # num_conv, i, j, k, w_fc[i], b_fc[i])))
+        for h in range(num * m * n):
+            i = int(h / (m*n))
+            l = int(h % (m*n))
+            j = int(l / n)
+            k = int(l % n)
+            # calculate the output of the convolution fliter
+            output = output.write((i * m + j ) * n + k,
+                        tf.identity(small_cnn(
+                                tf.slice(x, [0, j * stride, k * stride, 0],
+                                    [-1, a, b, input_num]),
+                                        num_conv, i, j, k)))
+                                        # num_conv, i, j, k, W_conv3[i], b_conv3[i])))
 
     # return the concated and reshaped data of output
     for i in range(m):
@@ -188,28 +166,28 @@ def scscn(x, num, num_conv):
 
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.1)
+    initial = tf.truncated_normal(shape, stddev=0.05)
     return tf.Variable(initial)
 
 
 def bias_variable(shape):
-    initial = tf.constant(0.01, shape=shape)
+    initial = tf.constant(0.0, shape=shape)
     return tf.Variable(initial)
 
 
 def weight_variable_(shape, id, j, k):
     return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
-                           shape, None, tf.random_normal_initializer(0, 0.01))
+                           shape, None, tf.random_normal_initializer(0, 0.05))
 
 
 def bias_variable_(shape, id, j, k):
     return tf.get_variable("biases" + str(id) + "a" + str(j) + "a" + str(k),
-                           shape, None, tf.constant_initializer(0.01))
+                           shape, None, tf.constant_initializer(0.0))
 
 
 def main(_):
     # Read data from MNIST
-    mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+    mnist = input_data.read_data_sets('fashion', one_hot=True)
     # mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
     # Placehoder of input and output
