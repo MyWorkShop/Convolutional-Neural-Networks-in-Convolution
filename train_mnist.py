@@ -11,44 +11,61 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 import tensorflow as tf
 
+import math
+
 FLAGS = None
 
 # Small CNN:
 # convolution fliter of SCSCN
 
 
-def small_cnn(x, num_conv, id, j, k):
-    with tf.variable_scope('conv1'):
+def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
+    with tf.variable_scope('conv1', reuse = reuse):
         W_conv1 = weight_variable_(
             [5,
              5,
              x.get_shape().as_list()[3],
              num_conv * 4],
-            id, j, k)
-        b_conv1 = bias_variable_([num_conv * 4], id, j, k)
+            id, 0, 0)
+        b_conv1 = bias_variable_([num_conv * 4], id, 0, 0)
         h_conv1 = tf.nn.relu(conv2d_(x, W_conv1) + b_conv1)
 
-    with tf.variable_scope('conv2'):
+    with tf.variable_scope('conv2', reuse = reuse):
         W_conv2 = weight_variable_(
             [5,
              5,
              num_conv * 4,
              num_conv * 8],
-            id, j, k)
-        b_conv2 = bias_variable_([num_conv * 8], id, j, k)
-        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+            id, 0, 0)
+        b_conv2 = bias_variable_([num_conv * 8], id, 0, 0)
+        h_conv2 = tf.nn.relu(conv2d_(h_conv1, W_conv2) + b_conv2)
 
-    with tf.variable_scope('avg_pool2'):
-        h_pool2 = avg_pool(h_conv2, 8, 8)
-        h_pool2_flat = tf.reshape(h_pool2, [-1, num_conv * 8])
+    with tf.variable_scope('conv3', reuse = reuse):
+        W_conv3 = weight_variable_(
+            [5,
+             5,
+             num_conv * 8,
+             num_conv * 8],
+            id, 0, 0)
+        b_conv3 = bias_variable_([num_conv * 8], id, 0, 0)
+        h_conv3 = tf.nn.relu(conv2d_(h_conv2, W_conv3) + b_conv3)
 
-    with tf.variable_scope('fc'):
-        W_fc = weight_variable([num_conv * 8, num_conv])
-        b_fc = bias_variable([num_conv])
+    with tf.variable_scope('pool2'):
+        h_pool2 = avg_pool(h_conv3, 2, 2)
+        h_pool2_flat = tf.reshape(h_pool2, [-1, num_conv * 8 * 4])
 
-        y_conv = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc) + b_fc)
+    with tf.variable_scope('fc1', reuse = reuse):
+        W_fc1 = weight_variable_([num_conv * 8 * 4, 512], id, 0, 0)
+        b_fc1 = bias_variable_([512], id, 0, 0)
+        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    return y_conv
+    with tf.variable_scope('fc', reuse = reuse):
+        W_fc = weight_variable_([512, num_conv], id, 0, 0)
+        b_fc = bias_variable_([num_conv], id, 0, 0)
+        h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+
+    return h_fc
 
 
 def deepnn(x):
@@ -59,13 +76,13 @@ def deepnn(x):
         h_scscn = scscn(x_image, 1, 32)
 
     with tf.variable_scope('conv1'):
-        W_conv1 = weight_variable([3, 3, 32, 64])
-        b_conv1 = bias_variable([64])
+        W_conv1 = weight_variable([3, 3, 32, 32])
+        b_conv1 = bias_variable([32])
         h_conv1 = tf.nn.relu(conv2d(h_scscn, W_conv1) + b_conv1)
-        h_pool1_flat = tf.reshape(h_conv1, [-1, 7 * 7 * 64])
+        h_pool1_flat = tf.reshape(h_conv1, [-1, 9 * 9 * 32])
 
     with tf.name_scope('fc1'):
-        W_fc1 = weight_variable([7 * 7 * 64, 1024])
+        W_fc1 = weight_variable([9 * 9 * 32, 1024])
         b_fc1 = bias_variable([1024])
         h_fc1 = tf.matmul(h_pool1_flat, W_fc1) + b_fc1
 
@@ -107,16 +124,17 @@ def max_pool(x, m, n):
 def scscn(x, num, num_conv):
     with tf.name_scope('kernal_size'):
         # Kernal size:
-        a = 12
-        b = 12
+        a = 16
+        b = 16
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 4
+        stride = 3
 
     with tf.name_scope('pad'):
         # pad of input
-        padd = 4
+        padd = 3
+        x = tf.reshape(x, [-1, 28, 28, 1])
         x = tf.pad(x, [[0, 0], [padd, padd], [padd, padd], [0, 0]])
 
     with tf.name_scope('input_size'):
@@ -138,20 +156,24 @@ def scscn(x, num, num_conv):
         # W_conv3 = []
         # b_conv3 = []
 
+    with tf.name_scope('dropout'):
+        keep_prob = tf.placeholder(tf.float32)
+
     with tf.name_scope('fliter'):
         for h in range(num * m * n):
             i = int(h / (m*n))
             l = int(h % (m*n))
             j = int(l / n)
             k = int(l % n)
+            if (j == 0)and(k == 0):
+                rr = False
             # calculate the output of the convolution fliter
             output = output.write((i * m + j ) * n + k,
                         tf.identity(small_cnn(
                                 tf.slice(x, [0, j * stride, k * stride, 0],
-                                    [-1, a, b, input_num]),
-                                        num_conv, i, j, k)))
-                                        # num_conv, i, j, k, W_conv3[i], b_conv3[i])))
-
+                                    [-1, a, b, -1]),
+                                        num_conv, i, j, k, rr, keep_prob)))
+            rr = True
     # return the concated and reshaped data of output
     for i in range(m):
         for j in range(n):
@@ -161,8 +183,11 @@ def scscn(x, num, num_conv):
                 else:
                     output_ = tf.concat([output_,
                                     output.read((k * m + i ) * n + j )], 1)
-    return tf.reshape(output_,
-                      [-1, m, n, num * num_conv])
+    return tf.reshape(avg_pool(tf.reshape(output_,
+                      [-1,
+                      m,
+                      n,
+                      num * num_conv]), 7, 7), [-1, num_conv]), keep_prob
 
 
 def weight_variable(shape):
@@ -187,8 +212,8 @@ def bias_variable_(shape, id, j, k):
 
 def main(_):
     # Read data from MNIST
-    mnist = input_data.read_data_sets('fashion', one_hot=True)
-    # mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+    # mnist = input_data.read_data_sets('fashion', one_hot=True)
+    mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
     # Placehoder of input and output
     x = tf.placeholder(tf.float32, [None, 784])
@@ -196,7 +221,7 @@ def main(_):
     y_ = tf.placeholder(tf.float32, [None, 10])
 
     # The main model
-    y_conv, keep_prob = deepnn(x)
+    y_conv, keep_prob = scscn(x, 1, 10)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_,
@@ -204,7 +229,8 @@ def main(_):
     cross_entropy = tf.reduce_mean(cross_entropy)
 
     with tf.name_scope('adam_optimizer'):
-        train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+        rate = tf.placeholder(tf.float32)
+        train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
 
     with tf.name_scope('accuracy'):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
@@ -213,9 +239,10 @@ def main(_):
 
     with tf.name_scope('config'):
         config = tf.ConfigProto(
-            inter_op_parallelism_threads = 81,
-            intra_op_parallelism_threads = 8
+            inter_op_parallelism_threads = 256,
+            intra_op_parallelism_threads = 64
         )
+        config.gpu_options.allow_growth = True
 
     with tf.name_scope('graph'):
         graph_location = tempfile.mkdtemp()
@@ -228,25 +255,30 @@ def main(_):
 
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
+        rt = 0.001
         for i in range(1000000):
             # Get the data of next batch
             batch = mnist.train.next_batch(100)
             if i % 600 == 0:
+                rt = rt * 0.98
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
                     accuracy_batch = mnist.test.next_batch(200)
                     train_accuracy += accuracy.eval(feed_dict={
-                        x: accuracy_batch[0], y_: accuracy_batch[1], keep_prob: 1.0})
+                        x: accuracy_batch[0],
+                            y_: accuracy_batch[1], keep_prob: 1.0})
                 print(
                     'step %g, training accuracy %g | speed: %g samples/s' %
-                    (i / 600, train_accuracy / 50, 100 * 600 / (time.clock() - t0)))
+                    (i / 600, train_accuracy / 50,
+                                    100 * 600 / (time.clock() - t0)))
                 t0 = time.clock()
             # Train
             train_step.run(
                 feed_dict={x: batch[0],
                            y_: batch[1],
-                           keep_prob: 0.5})
+                           keep_prob: 0.5,
+                           rate: rt})
 
         print('test accuracy %g' % accuracy.eval(feed_dict={
             x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
