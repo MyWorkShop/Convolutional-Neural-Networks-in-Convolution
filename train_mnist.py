@@ -51,11 +51,11 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
         h_conv3 = tf.nn.relu(conv2d_(h_conv2, W_conv3) + b_conv3)
 
     with tf.variable_scope('pool2'):
-        h_pool2 = avg_pool(h_conv3, 2, 2)
-        h_pool2_flat = tf.reshape(h_pool2, [-1, num_conv * 8 * 4])
+        # h_pool2 = avg_pool(h_conv3, 2, 2)
+        h_pool2_flat = tf.reshape(h_conv3, [-1, num_conv * 8 * 16])
 
     with tf.variable_scope('fc1', reuse = reuse):
-        W_fc1 = weight_variable_([num_conv * 8 * 4, 512], id, 0, 0)
+        W_fc1 = weight_variable_([num_conv * 8 * 16, 512], id, 0, 0)
         b_fc1 = bias_variable_([512], id, 0, 0)
         h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
@@ -260,7 +260,7 @@ def main(_):
             # Get the data of next batch
             batch = mnist.train.next_batch(100)
             if i % 600 == 0:
-                rt = rt * 0.98
+                rt = rt * 0.99
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
