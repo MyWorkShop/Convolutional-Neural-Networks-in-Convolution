@@ -20,7 +20,7 @@ FLAGS = None
 # convolution fliter of SCSCN
 #TODO/NOTE: 
 #1. Maybe try migrating to tflearn? It would be significantly easier to monitor/manage/save the parameters in tensorboard. --hxb
-#2. 这真是太暴力了...Is it possible to reduce the complexity? Why isn't this thing overfitting... --hxb
+#2. Is it possible to reduce the complexity? Why isn't this thing overfitting... --hxb
 #3. I failed to find the malfunctioned error function you mentioned. --hxb
 
 
