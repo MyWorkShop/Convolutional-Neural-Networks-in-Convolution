@@ -18,7 +18,7 @@ FLAGS = None
 
 # Small CNN:
 # convolution fliter of SCSCN
-#TODO/NOTE: 
+#TODO/NOTE:
 #1. Maybe try migrating to tflearn? It would be significantly easier to monitor/manage/save the parameters in tensorboard. --hxb
 #2. Is it possible to reduce the complexity? Why isn't this thing overfitting... --hxb
 #3. I failed to find the malfunctioned error function you mentioned. --hxb
@@ -219,6 +219,7 @@ def main(_):
                 if i == 100000:
                     lr = 3e-5
                 # Print the accuracy
+                t0 = time.clock()
                 train_accuracy = 0
                 for index in range(50):
                     accuracy_batch = mnist.test.next_batch(200)
@@ -227,7 +228,6 @@ def main(_):
                         y_: accuracy_batch[1],
                         keep_prob: 1.0
                     })
-                t0 = time.clock()
                 train_accuracy /= 50
                 print('epoch: {} |acc: {} |time: {}'.format(
                     i / 1000, train_accuracy, (time.clock() - t0)))
