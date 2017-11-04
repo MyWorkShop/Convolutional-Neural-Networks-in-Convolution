@@ -25,76 +25,48 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
             [5,
              5,
              x.get_shape().as_list()[3],
-             num_conv * 4],
+             32],
             id, 0, 0)
-        b_conv1 = bias_variable_([num_conv * 4], id, 0, 0)
-        h_conv1 = tf.nn.relu(conv2d_(x, W_conv1) + b_conv1)
+        b_conv1 = bias_variable_([32], id, 0, 0)
+        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
     with tf.variable_scope('conv2', reuse = reuse):
         W_conv2 = weight_variable_(
             [5,
              5,
-             num_conv * 4,
-             num_conv * 8],
+             32,
+             64],
             id, 0, 0)
-        b_conv2 = bias_variable_([num_conv * 8], id, 0, 0)
-        h_conv2 = tf.nn.relu(conv2d_(h_conv1, W_conv2) + b_conv2)
+        b_conv2 = bias_variable_([64], id, 0, 0)
+        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+        h_pool1 = avg_pool(h_conv2, 2, 2)
 
     with tf.variable_scope('conv3', reuse = reuse):
         W_conv3 = weight_variable_(
             [5,
              5,
-             num_conv * 8,
-             num_conv * 8],
+             64,
+             64],
             id, 0, 0)
-        b_conv3 = bias_variable_([num_conv * 8], id, 0, 0)
-        h_conv3 = tf.nn.relu(conv2d_(h_conv2, W_conv3) + b_conv3)
+        b_conv3 = bias_variable_([64], id, 0, 0)
+        h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
 
     with tf.variable_scope('pool2'):
-        # h_pool2 = avg_pool(h_conv3, 2, 2)
-        h_pool2_flat = tf.reshape(h_conv3, [-1, num_conv * 8 * 16])
+        h_pool2 = avg_pool(h_conv3, 2, 2)
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
     with tf.variable_scope('fc1', reuse = reuse):
-        W_fc1 = weight_variable_([num_conv * 8 * 16, 512], id, 0, 0)
-        b_fc1 = bias_variable_([512], id, 0, 0)
+        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
+        b_fc1 = bias_variable_([1024], id, 0, 0)
         h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
     with tf.variable_scope('fc', reuse = reuse):
-        W_fc = weight_variable_([512, num_conv], id, 0, 0)
+        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
         b_fc = bias_variable_([num_conv], id, 0, 0)
         h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
 
     return h_fc
-
-
-def deepnn(x):
-    with tf.name_scope('reshape'):
-        x_image = tf.reshape(x, [-1, 28, 28, 1])
-
-    with tf.name_scope('SCSCN'):
-        h_scscn = scscn(x_image, 1, 32)
-
-    with tf.variable_scope('conv1'):
-        W_conv1 = weight_variable([3, 3, 32, 32])
-        b_conv1 = bias_variable([32])
-        h_conv1 = tf.nn.relu(conv2d(h_scscn, W_conv1) + b_conv1)
-        h_pool1_flat = tf.reshape(h_conv1, [-1, 9 * 9 * 32])
-
-    with tf.name_scope('fc1'):
-        W_fc1 = weight_variable([9 * 9 * 32, 1024])
-        b_fc1 = bias_variable([1024])
-        h_fc1 = tf.matmul(h_pool1_flat, W_fc1) + b_fc1
-
-    with tf.name_scope('dropout'):
-        keep_prob = tf.placeholder(tf.float32)
-        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-    with tf.name_scope('fc2'):
-        W_fc2 = weight_variable([1024, 10])
-        b_fc2 = bias_variable([10])
-        y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
-    return y_conv, keep_prob
 
 
 def conv2d(x, W):
@@ -103,15 +75,6 @@ def conv2d(x, W):
 
 def conv2d_(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='VALID')
-
-
-def max_pool_2x2(x):
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
-                          strides=[1, 2, 2, 1], padding='SAME')
-
-def avg_pool_mix(x, m, n):
-    return tf.nn.avg_pool(x, ksize=[1, m, n, 1],
-                          strides=[1, 1, 1, 1], padding='VALID')
 
 def avg_pool(x, m, n):
     return tf.nn.avg_pool(x, ksize=[1, m, n, 1],
@@ -133,7 +96,7 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('pad'):
         # pad of input
-        padd = 3
+        padd = 0
         x = tf.reshape(x, [-1, 28, 28, 1])
         x = tf.pad(x, [[0, 0], [padd, padd], [padd, padd], [0, 0]])
 
@@ -153,8 +116,6 @@ def scscn(x, num, num_conv):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
         output = tf.TensorArray('float32', num * m * n)
-        # W_conv3 = []
-        # b_conv3 = []
 
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
@@ -187,7 +148,7 @@ def scscn(x, num, num_conv):
                       [-1,
                       m,
                       n,
-                      num * num_conv]), 7, 7), [-1, num_conv]), keep_prob
+                      num * num_conv]), 5, 5), [-1, num_conv]), keep_prob
 
 
 def weight_variable(shape):
@@ -256,11 +217,14 @@ def main(_):
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
         rt = 0.001
-        for i in range(1000000):
+        for i in range(150000):
             # Get the data of next batch
-            batch = mnist.train.next_batch(100)
-            if i % 600 == 0:
-                rt = rt * 0.99
+            batch = mnist.train.next_batch(60)
+            if i % 1000 == 0:
+                if i == 60000:
+                    rt = 1e-4
+                if i == 100000:
+                    rt = 3e-5
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
@@ -269,9 +233,8 @@ def main(_):
                         x: accuracy_batch[0],
                             y_: accuracy_batch[1], keep_prob: 1.0})
                 print(
-                    'step %g, training accuracy %g | speed: %g samples/s' %
-                    (i / 600, train_accuracy / 50,
-                                    100 * 600 / (time.clock() - t0)))
+                    '%g, %g, %g' %
+                    (i / 1000, train_accuracy / 50, (time.clock() - t0)))
                 t0 = time.clock()
             # Train
             train_step.run(
@@ -279,9 +242,6 @@ def main(_):
                            y_: batch[1],
                            keep_prob: 0.5,
                            rate: rt})
-
-        print('test accuracy %g' % accuracy.eval(feed_dict={
-            x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
