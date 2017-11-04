@@ -18,6 +18,10 @@ FLAGS = None
 
 # Small CNN:
 # convolution fliter of SCSCN
+#TODO/NOTE: 
+#1. Maybe try migrating to tflearn? It would be significantly easier to monitor/manage/save the parameters in tensorboard. --hxb
+#2. 这真是太暴力了...Is it possible to reduce the complexity? Why isn't this thing overfitting... --hxb
+#3. I failed to find the malfunctioned error function you mentioned. --hxb
 
 
 def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
@@ -221,6 +225,7 @@ def main(_):
         for i in range(150000):
             # Get the data of next batch
             batch = mnist.train.next_batch(60)
+            #Since we have adam as optimizer, do we really need this? --hxb
             if i % 1000 == 0:
                 if i == 60000:
                     rt = 1e-4
