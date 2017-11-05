@@ -122,7 +122,9 @@ def scscn(x, num, num_conv):
         output = tf.TensorArray('float32', num * m * n)
 
     with tf.name_scope('dropout'):
-        keep_prob = tf.placeholder(tf.float32)
+        keep_prob = tf.constant(
+            0.5)  # If it's not changing, why using a placeholder? --hxb
+        #keep_prob = tf.placeholder(tf.float32)
 
     with tf.name_scope('fliter'):
         for h in range(num * m * n):
@@ -192,10 +194,9 @@ def main(_):
 
     # The main model
 
-    #with tf.variable_scope('scnscn'):
     y_conv, keep_prob = scscn(x, 1, 10)
-    rate = tf.placeholder(tf.float32)
-    #train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
+    #rate = tf.placeholder(tf.float32)
+    rate = tf.constant(0.001)
     output = regression(
                 y_conv, optimizer='adam',
                 loss=lambda y_pred, y_true: tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
@@ -203,18 +204,14 @@ def main(_):
                 learning_rate=rate)
 
     scnscn_model = tflearn.DNN(output, tensorboard_verbose=0)
-
     scnscn_model.fit(
-        {
-            x: X,
-            rate: 0.1
-        },
+        X,
         Y,
         n_epoch=5,
         shuffle=False,
         validation_set=(X_test, Y_test),
         show_metric=True,
-        batch_size=1,
+        batch_size=64,
         run_id='mnist' + str(time.clock()))
     """
     # Start to run
@@ -261,7 +258,7 @@ if __name__ == '__main__':
         '--data_dir',
         type=str,
         default=
-        '/tmp/tensorflow/mnist/input_data',  #This is not implemented... --hxb
+        '/tmp/tensorflow/mnist/input_data', 
         help='Directory for storing input data')
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
