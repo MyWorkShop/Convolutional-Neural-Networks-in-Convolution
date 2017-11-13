@@ -207,7 +207,7 @@ def main(_):
     scnscn_model.fit(
         X,
         Y,
-        n_epoch=5,
+        n_epoch=50,
         shuffle=False,
         validation_set=(X_test, Y_test),
         show_metric=True,
