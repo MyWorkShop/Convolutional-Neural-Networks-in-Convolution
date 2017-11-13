@@ -15,7 +15,8 @@ import math
 
 FLAGS = None
 
-#TODO:
+# TODO:
+# new activation fn
 
 # Small CNN:
 # convolution fliter of SCSCN
@@ -23,40 +24,46 @@ FLAGS = None
 
 def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
     print('small_cnn input => {}'.format(x))
-    with tf.variable_scope('conv1', reuse=reuse):
-        W_conv1 = weight_variable_([5, 5, x.get_shape().as_list()[3], 32], id,
-                                   0, 0)
-        b_conv1 = bias_variable_([32], id, 0, 0)
-        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
-    with tf.variable_scope('conv2', reuse=reuse):
-        W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
-        b_conv2 = bias_variable_([64], id, 0, 0)
-        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        h_pool1 = avg_pool(h_conv2, 2, 2)
+    with tf.name_scope('small_cnn'):
+        with tf.variable_scope('conv1', reuse=reuse):
+            W_conv1 = weight_variable_(
+                [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
+            b_conv1 = bias_variable_([32], id, 0, 0)
+            h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
-    with tf.variable_scope('conv3', reuse=reuse):
-        W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
-        b_conv3 = bias_variable_([64], id, 0, 0)
-        h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
+        with tf.variable_scope('conv2', reuse=reuse):
+            W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
+            b_conv2 = bias_variable_([64], id, 0, 0)
+            h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+            h_pool1 = avg_pool(h_conv2, 2, 2)
 
-    with tf.variable_scope('pool2'):
-        h_pool2 = avg_pool(h_conv3, 2, 2)
-        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
+        with tf.variable_scope('conv3', reuse=reuse):
+            W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
+            b_conv3 = bias_variable_([64], id, 0, 0)
+            h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
 
-    with tf.variable_scope('fc1', reuse=reuse):
-        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
-        b_fc1 = bias_variable_([1024], id, 0, 0)
-        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        with tf.variable_scope('pool2'):
+            h_pool2 = avg_pool(h_conv3, 2, 2)
+            h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
-    with tf.variable_scope('fc', reuse=reuse):
-        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
-        b_fc = bias_variable_([num_conv], id, 0, 0)
-        h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+        with tf.variable_scope('fc1', reuse=reuse):
+            W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
+            b_fc1 = bias_variable_([1024], id, 0, 0)
+            h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+            h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    print('small_cnn output => {}'.format(h_fc))
-    return h_fc
+        with tf.variable_scope('fc', reuse=reuse):
+            W_fc = weight_variable_([1024, num_conv], id, 0, 0)
+            b_fc = bias_variable_([num_conv], id, 0, 0)
+            h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+
+        print('small_cnn output => {}'.format(h_fc))
+        return h_fc
+    pass
+
+
+pass
 
 
 def conv2d(x, W):
@@ -110,7 +117,7 @@ def scscn(x, num, num_conv):
         m = int((input_m - a) / stride + 1)  #m with strides
         n = int((input_n - b) / stride + 1)
 
-    with tf.name_scope('output'):
+    with tf.name_scope('scn_output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
         output = tf.TensorArray('float32', num * m * n)
@@ -143,22 +150,26 @@ def scscn(x, num, num_conv):
             pass
         pass
 
-    # return the concated and reshaped data of output
-    for i in range(m):
-        for j in range(n):
-            for k in range(num):
-                if (j == 0) and (k == 0) and (i == 0):
-                    output_ = output.read((k * m + i) * n + j)
-                else:
-                    output_ = tf.concat(
-                        [output_, output.read((k * m + i) * n + j)], 1)
+    with tf.name_scope('output_concated'):
+        # return the concated and reshaped data of output
+        for i in range(m):
+            for j in range(n):
+                for k in range(num):
+                    if (j == 0) and (k == 0) and (i == 0):
+                        output_ = output.read((k * m + i) * n + j)
+                    else:
+                        output_ = tf.concat(
+                            [output_,
+                             output.read((k * m + i) * n + j)], 1)
 
-    # Global avg pooling
-    scscn_out = tf.reshape(
-        avg_pool(tf.reshape(output_, [-1, m, n, num * num_conv]), 5, 5),
-        [-1, num_conv]), keep_prob
-    print('SCSCN Output: {}'.format(scscn_out))
-    return scscn_out
+    with tf.name_scope('global_avg_pool'):
+        # Global avg pooling
+        scscn_out = tf.reshape(
+            avg_pool(tf.reshape(output_, [-1, m, n, num * num_conv]), 5, 5),
+            [-1, num_conv]), keep_prob
+        print('SCSCN Output: {}'.format(scscn_out))
+        return scscn_out
+    pass
 
 
 def weight_variable(shape):  #This fn is never used?
@@ -171,7 +182,7 @@ def bias_variable(shape):  #This fn is never used?
     return tf.Variable(initial)
 
 
-#Reuse
+#Reuse if exists
 def weight_variable_(shape, id, j, k):
     return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
                            shape, None, tf.random_normal_initializer(0, 0.05))
@@ -188,9 +199,10 @@ def main(_):
     mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
     # Placehoder of input and output
-    x = tf.placeholder(tf.float32, [None, 784])
+    with tf.name_scope('input'):
+        x = tf.placeholder(tf.float32, [None, 784], name='input')
 
-    y_ = tf.placeholder(tf.float32, [None, 10])
+    y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
     # The main model
     y_conv, keep_prob = scscn(x, 1, 10)
@@ -215,7 +227,8 @@ def main(_):
         config.gpu_options.allow_growth = True
 
     with tf.name_scope('graph'):
-        graph_location = tempfile.mkdtemp()
+        #graph_location = tempfile.mkdtemp()
+        graph_location = '/tmp/saved_models'
         print('Saving graph to: %s' % graph_location)
         train_writer = tf.summary.FileWriter(graph_location)
         train_writer.add_graph(tf.get_default_graph())
