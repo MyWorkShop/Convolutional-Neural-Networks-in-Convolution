@@ -210,7 +210,7 @@ def main(_):
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=y_, logits=y_conv)
-    cross_entropy = tf.reduce_mean(cross_entropy)
+        cross_entropy = tf.reduce_mean(cross_entropy)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
@@ -226,12 +226,18 @@ def main(_):
             inter_op_parallelism_threads=256, intra_op_parallelism_threads=64)
         config.gpu_options.allow_growth = True
 
-    with tf.name_scope('graph'):
+    with tf.name_scope('logger'):
+        # Graph
         #graph_location = tempfile.mkdtemp()
         graph_location = '/tmp/saved_models'
         print('Saving graph to: %s' % graph_location)
-        train_writer = tf.summary.FileWriter(graph_location)
-        train_writer.add_graph(tf.get_default_graph())
+        writer = tf.summary.FileWriter(
+            graph_location, graph=tf.get_default_graph())
+
+        # Loss
+        tf.summary.scalar("loss", cross_entropy)
+        summary_op = tf.summary.merge_all()
+
     #"""
     # Start to run
     with tf.Session(config=config) as sess:
@@ -240,9 +246,10 @@ def main(_):
         t0 = time.clock()
         rt = 0.001
         #for i in range(150000):
-        for i in range(1):
+        for i in range(10000):
             # Get the data of next batch
-            batch = mnist.train.next_batch(60)
+            bs = 64
+            batch = mnist.train.next_batch(bs)
             if i % 1000 == 0:
                 if i == 60000:
                     rt = 1e-4
@@ -260,6 +267,16 @@ def main(_):
                 print('%g, %g, %g' % (i / 1000, train_accuracy / 50,
                                       (time.clock() - t0)))
                 t0 = time.clock()
+
+                # Log loss
+                summary = summary_op.eval(feed_dict={
+                    x: accuracy_batch[0],
+                    y_: accuracy_batch[1],
+                    keep_prob: 1.0
+                })
+                writer.add_summary(summary, i * bs)
+                pass
+
             # Train
             train_step.run(feed_dict={
                 x: batch[0],
