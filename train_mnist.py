@@ -228,8 +228,9 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
+        import time
         #graph_location = tempfile.mkdtemp()
-        graph_location = '/tmp/saved_models'
+        graph_location = '/tmp/saved_models/' + str(time.time())
         print('Saving graph to: %s' % graph_location)
         writer = tf.summary.FileWriter(
             graph_location, graph=tf.get_default_graph())
@@ -245,8 +246,8 @@ def main(_):
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
         rt = 0.001
-        #for i in range(150000):
-        for i in range(10000):
+        for i in range(150000):
+        #for i in range(3000):
             # Get the data of next batch
             bs = 64
             batch = mnist.train.next_batch(bs)
