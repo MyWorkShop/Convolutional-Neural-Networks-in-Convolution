@@ -218,6 +218,10 @@ def main(_):
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
         train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
+    #"""
+    with tf.name_scope('momentum_optimizer'): #this works really bad...
+        train_step_mmntm = tf.train.MomentumOptimizer(rate,momentum=0.9).minimize(cross_entropy)
+    #"""
 
     with tf.name_scope('accuracy'):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
@@ -231,7 +235,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'lrelu_and_dynamic_grad'
+        run_description = 'lrelu_)_dynamic_grad_)_mmntm'
         import time
         #graph_location = tempfile.mkdtemp()
         graph_location = '/tmp/saved_models/' + run_description + str(
@@ -258,9 +262,10 @@ def main(_):
             batch = mnist.train.next_batch(bs)
             #if i % 1000 == 0:
             if i % 100 == 0:
-                if i == 60000:
+                #if i == 60000:
+                if i == 2000:
                     rt = 1e-4
-                if i == 100000:
+                if i == 10000:
                     rt = 3e-5
                 # Print the accuracy
                 train_accuracy = 0
@@ -285,7 +290,7 @@ def main(_):
                 pass
 
             # Train
-            train_step.run(feed_dict={
+            train_step_mmntm.run(feed_dict={
                 x: batch[0],
                 y_: batch[1],
                 keep_prob: 0.5,
