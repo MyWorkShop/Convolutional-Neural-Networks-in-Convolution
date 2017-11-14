@@ -25,23 +25,26 @@ FLAGS = None
 def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
     print('small_cnn input => {}'.format(x))
 
+    #Leaky relu
+    lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
+
     with tf.name_scope('small_cnn'):
         with tf.variable_scope('conv1', reuse=reuse):
             W_conv1 = weight_variable_(
                 [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
             b_conv1 = bias_variable_([32], id, 0, 0)
-            h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
+            h_conv1 = lrelu(conv2d(x, W_conv1) + b_conv1)
 
         with tf.variable_scope('conv2', reuse=reuse):
             W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
             b_conv2 = bias_variable_([64], id, 0, 0)
-            h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+            h_conv2 = lrelu(conv2d(h_conv1, W_conv2) + b_conv2)
             h_pool1 = avg_pool(h_conv2, 2, 2)
 
         with tf.variable_scope('conv3', reuse=reuse):
             W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
             b_conv3 = bias_variable_([64], id, 0, 0)
-            h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
+            h_conv3 = lrelu(conv2d(h_pool1, W_conv3) + b_conv3)
 
         with tf.variable_scope('pool2'):
             h_pool2 = avg_pool(h_conv3, 2, 2)
@@ -50,7 +53,7 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
         with tf.variable_scope('fc1', reuse=reuse):
             W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
             b_fc1 = bias_variable_([1024], id, 0, 0)
-            h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+            h_fc1 = lrelu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
             h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
         with tf.variable_scope('fc', reuse=reuse):
