@@ -27,33 +27,38 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
 
     #Leaky relu
     lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
+    relu = lambda x: tf.nn.relu(x)
 
     with tf.name_scope('small_cnn'):
         with tf.variable_scope('conv1', reuse=reuse):
             W_conv1 = weight_variable_(
                 [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
             b_conv1 = bias_variable_([32], id, 0, 0)
-            h_conv1 = lrelu(conv2d(x, W_conv1) + b_conv1)
+            h_conv1 = relu(conv2d(x, W_conv1) + b_conv1)
 
         with tf.variable_scope('conv2', reuse=reuse):
             W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
             b_conv2 = bias_variable_([64], id, 0, 0)
-            h_conv2 = lrelu(conv2d(h_conv1, W_conv2) + b_conv2)
+            h_conv2 = relu(conv2d(h_conv1, W_conv2) + b_conv2)
             h_pool1 = avg_pool(h_conv2, 2, 2)
 
+        #'''
         with tf.variable_scope('conv3', reuse=reuse):
             W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
             b_conv3 = bias_variable_([64], id, 0, 0)
-            h_conv3 = lrelu(conv2d(h_pool1, W_conv3) + b_conv3)
+            h_conv3 = relu(conv2d(h_pool1, W_conv3) + b_conv3)
+        #'''
 
         with tf.variable_scope('pool2'):
             h_pool2 = avg_pool(h_conv3, 2, 2)
             h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
-        with tf.variable_scope('fc1', reuse=reuse):
+        with tf.variable_scope(
+                'fc1', reuse=reuse,
+                ):#regularizer=tf.contrib.layers.l2_regularizer):
             W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
             b_fc1 = bias_variable_([1024], id, 0, 0)
-            h_fc1 = lrelu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+            h_fc1 = relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
             h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
         with tf.variable_scope('fc', reuse=reuse):
@@ -213,14 +218,20 @@ def main(_):
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=y_, logits=y_conv)
-        cross_entropy = tf.reduce_mean(cross_entropy)
+
+        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+        reg_constant = 0.01  # Choose an appropriate one.
+
+        cross_entropy = tf.reduce_mean(
+            cross_entropy) + reg_constant * tf.reduce_mean(reg_losses)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
         train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
     #"""
-    with tf.name_scope('momentum_optimizer'): #this works really bad...
-        train_step_mmntm = tf.train.MomentumOptimizer(rate,momentum=0.9).minimize(cross_entropy)
+    with tf.name_scope('momentum_optimizer'):  #this works really bad...
+        train_step_mmntm = tf.train.MomentumOptimizer(
+            rate, momentum=0.9).minimize(cross_entropy)
     #"""
 
     with tf.name_scope('accuracy'):
@@ -235,7 +246,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'lrelu_)_dynamic_grad_)_mmntm'
+        run_description = 'lrelu_)_dynamic_grad_)_adam_)_remove_rc1'
         import time
         #graph_location = tempfile.mkdtemp()
         graph_location = '/tmp/saved_models/' + run_description + str(
@@ -290,7 +301,7 @@ def main(_):
                 pass
 
             # Train
-            train_step_mmntm.run(feed_dict={
+            train_step.run(feed_dict={
                 x: batch[0],
                 y_: batch[1],
                 keep_prob: 0.5,
