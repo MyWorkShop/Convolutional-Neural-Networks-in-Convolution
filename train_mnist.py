@@ -34,19 +34,19 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
             W_conv1 = weight_variable_(
                 [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
             b_conv1 = bias_variable_([32], id, 0, 0)
-            h_conv1 = relu(conv2d(x, W_conv1) + b_conv1)
+            h_conv1 = lrelu(conv2d(x, W_conv1) + b_conv1)
 
         with tf.variable_scope('conv2', reuse=reuse):
             W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
             b_conv2 = bias_variable_([64], id, 0, 0)
-            h_conv2 = relu(conv2d(h_conv1, W_conv2) + b_conv2)
+            h_conv2 = lrelu(conv2d(h_conv1, W_conv2) + b_conv2)
             h_pool1 = avg_pool(h_conv2, 2, 2)
 
         #'''
         with tf.variable_scope('conv3', reuse=reuse):
             W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
             b_conv3 = bias_variable_([64], id, 0, 0)
-            h_conv3 = relu(conv2d(h_pool1, W_conv3) + b_conv3)
+            h_conv3 = lrelu(conv2d(h_pool1, W_conv3) + b_conv3)
         #'''
 
         with tf.variable_scope('pool2'):
@@ -54,11 +54,12 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
             h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
         with tf.variable_scope(
-                'fc1', reuse=reuse,
-                ):#regularizer=tf.contrib.layers.l2_regularizer):
+                'fc1',
+                reuse=reuse,
+                regularizer=tf.contrib.layers.l2_regularizer(scale=0.1)):
             W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
             b_fc1 = bias_variable_([1024], id, 0, 0)
-            h_fc1 = relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+            h_fc1 = lrelu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
             h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
         with tf.variable_scope('fc', reuse=reuse):
@@ -220,10 +221,9 @@ def main(_):
             labels=y_, logits=y_conv)
 
         reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-        reg_constant = 0.01  # Choose an appropriate one.
 
-        cross_entropy = tf.reduce_mean(
-            cross_entropy) + reg_constant * tf.reduce_mean(reg_losses)
+        cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
+            reg_losses)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
@@ -274,10 +274,14 @@ def main(_):
             #if i % 1000 == 0:
             if i % 100 == 0:
                 #if i == 60000:
-                if i == 2000:
+                if i == 500:
+                    rt = 0.001
+                if i == 2500:
                     rt = 1e-4
-                if i == 10000:
+                    print('new rt: {}'.format(rt))
+                if i == 3400:
                     rt = 3e-5
+                    print('new rt: {}'.format(rt))
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
@@ -287,7 +291,7 @@ def main(_):
                         y_: accuracy_batch[1],
                         keep_prob: 1.0
                     })
-                print('%g, %g, %g' % (i / 1000, train_accuracy / 50,
+                print('%g, %g, %g' % (i, train_accuracy / 50,
                                       (time.clock() - t0)))
                 t0 = time.clock()
 
