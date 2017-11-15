@@ -43,8 +43,8 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
 
     with tf.variable_scope('conv3', reuse = reuse):
         W_conv3 = weight_variable_(
-            [5,
-             5,
+            [3,
+             3,
              64,
              64],
             id, 0, 0)
@@ -92,7 +92,7 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 3
+        stride = 2
 
     with tf.name_scope('pad'):
         # pad of input
@@ -148,7 +148,7 @@ def scscn(x, num, num_conv):
                       [-1,
                       m,
                       n,
-                      num * num_conv]), 5, 5), [-1, num_conv]), keep_prob
+                      num * num_conv]), 7, 7), [-1, num_conv]), keep_prob
 
 
 def weight_variable(shape):
@@ -210,21 +210,23 @@ def main(_):
         print('Saving graph to: %s' % graph_location)
         train_writer = tf.summary.FileWriter(graph_location)
         train_writer.add_graph(tf.get_default_graph())
+        merged = tf.summary.merge_all()
 
     # Start to run
     with tf.Session(config=config) as sess:
 
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
-        rt = 0.001
-        for i in range(150000):
+        rt = 1e-3
+        for i in range(140001):
             # Get the data of next batch
             batch = mnist.train.next_batch(60)
             if i % 1000 == 0:
-                if i == 60000:
+                # rt = rt * 0.95
+                if i == 600000:
+                    rt = 3e-4
+                if i == 1000000:
                     rt = 1e-4
-                if i == 100000:
-                    rt = 3e-5
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
