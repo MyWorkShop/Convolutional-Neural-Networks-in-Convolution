@@ -15,20 +15,11 @@ import math
 
 FLAGS = None
 
-# TODO:
-# new activation fn
-
 # Small CNN:
 # convolution fliter of SCSCN
 
 
-# TODO: argument dismatch
-#def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
-def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
-    print('[small_cnn] input => {}'.format(x))
-    lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
-    relu = lambda x: tf.nn.relu(x)
-    elu = lambda x: tf.nn.elu(x)
+def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
     with tf.variable_scope('conv1', reuse=reuse):
         W_conv1 = weight_variable_([5, 5, x.get_shape().as_list()[3], 32], id,
                                    0, 0)
@@ -61,7 +52,6 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
         b_fc = bias_variable_([num_conv], id, 0, 0)
         h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
 
-    print('[small_cnn] output <= {}'.format(h_fc))
     return h_fc
 
 
@@ -83,8 +73,6 @@ def max_pool(x, m, n):
         x, ksize=[1, m, n, 1], strides=[1, m, n, 1], padding='SAME')
 
 
-# x=>[bs,784]
-# num=>num of output channels
 def scscn(x, num, num_conv):
     with tf.name_scope('kernal_size'):
         # Kernal size:
@@ -100,7 +88,6 @@ def scscn(x, num, num_conv):
         padd = 0
         x = tf.reshape(x, [-1, 28, 28, 1])
         x = tf.pad(x, [[0, 0], [padd, padd], [padd, padd], [0, 0]])
-        print('SCSCN Input after padding: {}'.format(x.get_shape()))
 
     with tf.name_scope('input_size'):
         # Size of input:
@@ -113,7 +100,7 @@ def scscn(x, num, num_conv):
         # Size:
         m = int((input_m - a) / stride + 1)
         n = int((input_n - b) / stride + 1)
-        print('m: {}\nn: {}'.format(m, n))
+        print('m: {}\nn: {}'.format(m,n))
         print('----------------------------')
 
     with tf.name_scope('output'):
@@ -126,10 +113,10 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('fliter'):
         for h in range(num * m * n):
-            i = int(h / (m * n))
-            l = int(h % (m * n))
-            j = int(l / n)
-            k = int(l % n)
+            i = int(h / (m * n))  # location in map
+            l = int(h % (m * n))  #
+            j = int(l / n)  #
+            k = int(l % n)  # =h
             print('h: {}\ni: {}\nl: {}\nj :{}\nk: {}'.format(h, i, l, j, l))
             print('slice: {} | {}'.format([0, j * stride, k * stride, 0],
                                           [-1, a, b, -1]))
@@ -150,12 +137,11 @@ def weight_variable(shape):
     return tf.Variable(initial)
 
 
-def bias_variable(shape):  #This fn is never used?
+def bias_variable(shape):
     initial = tf.constant(0.0, shape=shape)
     return tf.Variable(initial)
 
 
-#Reuse if exists
 def weight_variable_(shape, id, j, k):
     return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
                            shape, None, tf.random_normal_initializer(0, 0.05))
@@ -172,10 +158,9 @@ def main(_):
     mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
     # Placehoder of input and output
-    with tf.name_scope('input'):
-        x = tf.placeholder(tf.float32, [None, 784], name='input')
+    x = tf.placeholder(tf.float32, [None, 784])
 
-        y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
+    y_ = tf.placeholder(tf.float32, [None, 10])
 
     # The main model
     y_conv, keep_prob = scscn(x, 1, 10)
@@ -183,20 +168,11 @@ def main(_):
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=y_, logits=y_conv)
-
-        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-
-        cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
-            reg_losses)
+    cross_entropy = tf.reduce_mean(cross_entropy)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
         train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
-    #"""
-    with tf.name_scope('momentum_optimizer'):  #this works really bad...
-        train_step_mmntm = tf.train.MomentumOptimizer(
-            rate, momentum=0.9).minimize(cross_entropy)
-    #"""
 
     with tf.name_scope('accuracy'):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
@@ -207,46 +183,19 @@ def main(_):
         config = tf.ConfigProto(
             inter_op_parallelism_threads=256, intra_op_parallelism_threads=64)
         config.gpu_options.allow_growth = True
-        config.gpu_options.per_process_gpu_memory_fraction = 0.4
 
-    with tf.name_scope('logger'):
-        # Graph
-        run_description = 'l2_lrelu'
-        import time
-
-        graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
+    with tf.name_scope('graph'):
+        graph_location = tempfile.mkdtemp()
         print('Saving graph to: %s' % graph_location)
+        train_writer = tf.summary.FileWriter(graph_location)
+        train_writer.add_graph(tf.get_default_graph())
+        merged = tf.summary.merge_all()
 
-        writer = tf.summary.FileWriter(
-            graph_location, graph=tf.get_default_graph())
-
-        saver = tf.train.Saver()
-        save_location = '/tmp/saved_models/' + run_description + '/saved'
-        recover_location = '/tmp/saved_models/' + run_description + '/'
-
-        # Loss
-        tf.summary.scalar("loss", cross_entropy)
-        summary_op = tf.summary.merge_all()
-
-    #"""
     # Start to run
     with tf.Session(config=config) as sess:
 
         sess.run(tf.global_variables_initializer())
-        try:
-            import os
-            if (True):
-                saver.restore(sess,
-                              tf.train.latest_checkpoint(recover_location))
-                print('[saver] Parameter loaded from {}'.format(
-                    tf.train.latest_checkpoint(recover_location)))
-            else:
-                print('[saver] Checkpoint not found.')
-        except Exception as e:
-            print('[saver] Failed to load parameter: {}'.format(e))
-
         t0 = time.clock()
-
         rt = 1e-3
         for i in range(140001):
             # Get the data of next batch
@@ -255,11 +204,8 @@ def main(_):
                 # rt = rt * 0.95
                 if i == 600000:
                     rt = 3e-4
-                    print('new rt: {}'.format(rt))
                 if i == 1000000:
                     rt = 1e-4
-                    print('new rt: {}'.format(rt))
-
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
@@ -269,27 +215,9 @@ def main(_):
                         y_: accuracy_batch[1],
                         keep_prob: 1.0
                     })
-
-                print('%g, %g, %g' % (i, train_accuracy / 50,
+                print('%g, %g, %g' % (i / 1000, train_accuracy / 50,
                                       (time.clock() - t0)))
                 t0 = time.clock()
-
-                # Log loss
-                summary = summary_op.eval(feed_dict={
-                    x: accuracy_batch[0],
-                    y_: accuracy_batch[1],
-                    keep_prob: 1.0
-                })
-                writer.add_summary(summary, i * bs)
-                # Save parameters
-                if (i % 1000 == 0):
-                    real_location = saver.save(
-                        sess, save_location, global_step=999999
-                    )  # Making sure it's the lastest_checkpoint
-                    print("[saver] Model saved at {}".format(real_location))
-                    pass
-                pass
-
             # Train
             train_step.run(feed_dict={
                 x: batch[0],
@@ -297,7 +225,6 @@ def main(_):
                 keep_prob: 0.5,
                 rate: rt
             })
-    #"""
 
 
 if __name__ == '__main__':
