@@ -22,54 +22,48 @@ FLAGS = None
 # convolution fliter of SCSCN
 
 
-def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
-    with tf.variable_scope('conv1', reuse = reuse):
-        W_conv1 = weight_variable_(
-            [5,
-             5,
-             x.get_shape().as_list()[3],
-             32],
-            id, 0, 0)
-        b_conv1 = bias_variable_([32], id, 0, 0)
-        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
+def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
+    print('small_cnn input => {}'.format(x))
 
-    with tf.variable_scope('conv2', reuse = reuse):
-        W_conv2 = weight_variable_(
-            [5,
-             5,
-             32,
-             64],
-            id, 0, 0)
-        b_conv2 = bias_variable_([64], id, 0, 0)
-        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        h_pool1 = avg_pool(h_conv2, 2, 2)
+    with tf.name_scope('small_cnn'):
+        with tf.variable_scope('conv1', reuse=reuse):
+            W_conv1 = weight_variable_(
+                [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
+            b_conv1 = bias_variable_([32], id, 0, 0)
+            h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
-    with tf.variable_scope('conv3', reuse = reuse):
-        W_conv3 = weight_variable_(
-            [3,
-             3,
-             64,
-             64],
-            id, 0, 0)
-        b_conv3 = bias_variable_([64], id, 0, 0)
-        h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
+        with tf.variable_scope('conv2', reuse=reuse):
+            W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
+            b_conv2 = bias_variable_([64], id, 0, 0)
+            h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+            h_pool1 = avg_pool(h_conv2, 2, 2)
 
-    with tf.variable_scope('pool2'):
-        h_pool2 = avg_pool(h_conv3, 2, 2)
-        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
+        with tf.variable_scope('conv3', reuse=reuse):
+            W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
+            b_conv3 = bias_variable_([64], id, 0, 0)
+            h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
 
-    with tf.variable_scope('fc1', reuse = reuse):
-        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
-        b_fc1 = bias_variable_([1024], id, 0, 0)
-        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        with tf.variable_scope('pool2'):
+            h_pool2 = avg_pool(h_conv3, 2, 2)
+            h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
-    with tf.variable_scope('fc', reuse = reuse):
-        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
-        b_fc = bias_variable_([num_conv], id, 0, 0)
-        h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+        with tf.variable_scope('fc1', reuse=reuse):
+            W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
+            b_fc1 = bias_variable_([1024], id, 0, 0)
+            h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+            h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    return h_fc
+        with tf.variable_scope('fc', reuse=reuse):
+            W_fc = weight_variable_([1024, num_conv], id, 0, 0)
+            b_fc = bias_variable_([num_conv], id, 0, 0)
+            h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+
+        print('small_cnn output => {}'.format(h_fc))
+        return h_fc
+    pass
+
+
+pass
 
 
 def conv2d(x, W):
@@ -126,30 +120,59 @@ def scscn(x, num, num_conv):
     with tf.name_scope('scn_output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        slicing = tf.TensorArray('float32', num * m * n)
+        output = tf.TensorArray('float32', num * m * n)
 
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
 
     with tf.name_scope('fliter'):
+        for h in range(num * m * n):  # h=> each conv op
+            i = int(h / (m * n))  # progress of current feature map (for id)
+            l = int(h % (m * n))  # ???
+            j = int(l / n)  # ???/n
+            k = int(l % n)  # progress at current line
 
-        for h in range(num * m * n):
-            i = int(h / (m*n))
-            l = int(h % (m*n))
-            j = int(l / n)
-            k = int(l % n)
-            slicing = slicing.write(h,
+            # reuse only if it's the first
+            if (j == 0) and (k == 0):
+                rr = False
+            else:
+                rr = True
+
+            # calculate the output of the convolution fliter
+            output = output.write(
+                (i * m + j) * n + k,
+                tf.identity(
+                    small_cnn(
                         tf.slice(x, [0, j * stride, k * stride, 0],
-                                    [-1, a, b, -1]))
-    with tf.name_scope('scn'):
-        scn_input = slicing.concat()
-        output = small_cnn(scn_input, num_conv, keep_prob)
-        output = tf.reshape(output, [m * n, -1, num * num_conv])
+                                 [-1, a, b, -1]), num_conv, i, j, k, rr,
+                        keep_prob)))
+            #small_cnn(x, num_conv, id, j, k, reuse, keep_prob) [j, k not used]
+            pass
+        pass
 
-    return tf.reduce_mean(output, 0), keep_prob
+    with tf.name_scope('output_concated'):
+        # return the concated and reshaped data of output
+        for i in range(m):
+            for j in range(n):
+                for k in range(num):
+                    if (j == 0) and (k == 0) and (i == 0):
+                        output_ = output.read((k * m + i) * n + j)
+                    else:
+                        output_ = tf.concat(
+                            [output_,
+                             output.read((k * m + i) * n + j)], 1)
+
+    with tf.name_scope('global_avg_pool'):
+        # Global avg pooling
+        scscn_out = tf.reshape(
+            avg_pool(tf.reshape(output_, [-1, m, n, num * num_conv]), 5, 5),
+            [-1, num_conv]), keep_prob
+        print('SCSCN Output: {}'.format(scscn_out))
+        return scscn_out
+    pass
 
 
-def weight_variable(shape):
+def weight_variable(shape):  #This fn is never used?
     initial = tf.truncated_normal(shape, stddev=0.05)
     return tf.Variable(initial)
 
@@ -187,20 +210,11 @@ def main(_):
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=y_, logits=y_conv)
-
-        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-
-        cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
-            reg_losses)
+        cross_entropy = tf.reduce_mean(cross_entropy)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
         train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
-    #"""
-    with tf.name_scope('momentum_optimizer'):  #this works really bad...
-        train_step_mmntm = tf.train.MomentumOptimizer(
-            rate, momentum=0.9).minimize(cross_entropy)
-    #"""
 
     with tf.name_scope('accuracy'):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
@@ -214,18 +228,12 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu'
         import time
-
-        graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
+        #graph_location = tempfile.mkdtemp()
+        graph_location = '/tmp/saved_models/' + str(time.time())
         print('Saving graph to: %s' % graph_location)
-
         writer = tf.summary.FileWriter(
             graph_location, graph=tf.get_default_graph())
-
-        saver = tf.train.Saver()
-        save_location = '/tmp/saved_models/' + run_description + '/saved'
-        recover_location = '/tmp/saved_models/' + run_description + '/'
 
         # Loss
         tf.summary.scalar("loss", cross_entropy)
@@ -236,33 +244,19 @@ def main(_):
     with tf.Session(config=config) as sess:
 
         sess.run(tf.global_variables_initializer())
-        try:
-            import os
-            if (True):
-                saver.restore(sess,
-                              tf.train.latest_checkpoint(recover_location))
-                print('[saver] Parameter loaded from {}'.format(
-                    tf.train.latest_checkpoint(recover_location)))
-            else:
-                print('[saver] Checkpoint not found.')
-        except Exception as e:
-            print('[saver] Failed to load parameter: {}'.format(e))
-
         t0 = time.clock()
-
-        rt = 1e-3
-        for i in range(140001):
+        rt = 0.001
+        #for i in range(150000):
+        for i in range(3000):
             # Get the data of next batch
-            batch = mnist.train.next_batch(60)
-            if i % 1000 == 0:
-                # rt = rt * 0.95
-                if i == 600000:
-                    rt = 3e-4
-                    print('new rt: {}'.format(rt))
-                if i == 1000000:
+            bs = 64
+            batch = mnist.train.next_batch(bs)
+            if i % 100 == 0:
+            #if i % 1000 == 0:
+                if i == 60000:
                     rt = 1e-4
-                    print('new rt: {}'.format(rt))
-
+                if i == 100000:
+                    rt = 3e-5
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
@@ -272,8 +266,7 @@ def main(_):
                         y_: accuracy_batch[1],
                         keep_prob: 1.0
                     })
-                    
-                print('%g, %g, %g' % (i, train_accuracy / 50,
+                print('%g, %g, %g' % (i / 1000, train_accuracy / 50,
                                       (time.clock() - t0)))
                 t0 = time.clock()
 
@@ -284,12 +277,6 @@ def main(_):
                     keep_prob: 1.0
                 })
                 writer.add_summary(summary, i * bs)
-                # Save parameters
-                if (i % 500 == 0):
-                    real_location = saver.save(
-                        sess, save_location, global_step=999999)
-                    print("[saver] Model saved at {}".format(real_location))
-                    pass
                 pass
 
             # Train
