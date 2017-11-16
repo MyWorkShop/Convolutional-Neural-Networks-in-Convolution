@@ -22,57 +22,54 @@ FLAGS = None
 # convolution fliter of SCSCN
 
 
-def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
-    print('[small_cnn] input => {}'.format(x))
+def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
+    with tf.variable_scope('conv1', reuse = reuse):
+        W_conv1 = weight_variable_(
+            [5,
+             5,
+             x.get_shape().as_list()[3],
+             32],
+            id, 0, 0)
+        b_conv1 = bias_variable_([32], id, 0, 0)
+        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
-    #Leaky relu
-    lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
-    relu = lambda x: tf.nn.relu(x)
+    with tf.variable_scope('conv2', reuse = reuse):
+        W_conv2 = weight_variable_(
+            [5,
+             5,
+             32,
+             64],
+            id, 0, 0)
+        b_conv2 = bias_variable_([64], id, 0, 0)
+        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+        h_pool1 = avg_pool(h_conv2, 2, 2)
 
-    with tf.name_scope('small_cnn'):
-        with tf.variable_scope('conv1', reuse=reuse):
-            W_conv1 = weight_variable_(
-                [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
-            b_conv1 = bias_variable_([32], id, 0, 0)
-            h_conv1 = lrelu(conv2d(x, W_conv1) + b_conv1)
+    with tf.variable_scope('conv3', reuse = reuse):
+        W_conv3 = weight_variable_(
+            [3,
+             3,
+             64,
+             64],
+            id, 0, 0)
+        b_conv3 = bias_variable_([64], id, 0, 0)
+        h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
 
-        with tf.variable_scope('conv2', reuse=reuse):
-            W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
-            b_conv2 = bias_variable_([64], id, 0, 0)
-            h_conv2 = lrelu(conv2d(h_conv1, W_conv2) + b_conv2)
-            h_pool1 = avg_pool(h_conv2, 2, 2)
+    with tf.variable_scope('pool2'):
+        h_pool2 = avg_pool(h_conv3, 2, 2)
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
-        #'''
-        with tf.variable_scope('conv3', reuse=reuse):
-            W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
-            b_conv3 = bias_variable_([64], id, 0, 0)
-            h_conv3 = lrelu(conv2d(h_pool1, W_conv3) + b_conv3)
-        #'''
+    with tf.variable_scope('fc1', reuse = reuse):
+        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
+        b_fc1 = bias_variable_([1024], id, 0, 0)
+        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-        with tf.variable_scope('pool2'):
-            h_pool2 = avg_pool(h_conv3, 2, 2)
-            h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
+    with tf.variable_scope('fc', reuse = reuse):
+        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
+        b_fc = bias_variable_([num_conv], id, 0, 0)
+        h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
 
-        with tf.variable_scope(
-                'fc1',
-                reuse=reuse,
-                regularizer=tf.contrib.layers.l2_regularizer(scale=0.1)):
-            W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
-            b_fc1 = bias_variable_([1024], id, 0, 0)
-            h_fc1 = lrelu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-            h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-        with tf.variable_scope('fc', reuse=reuse):
-            W_fc = weight_variable_([1024, num_conv], id, 0, 0)
-            b_fc = bias_variable_([num_conv], id, 0, 0)
-            h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
-
-        print('[small_cnn] output <= {}'.format(h_fc))
-        return h_fc
-    pass
-
-
-pass
+    return h_fc
 
 
 def conv2d(x, W):
@@ -129,59 +126,30 @@ def scscn(x, num, num_conv):
     with tf.name_scope('scn_output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        output = tf.TensorArray('float32', num * m * n)
+        slicing = tf.TensorArray('float32', num * m * n)
 
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
 
     with tf.name_scope('fliter'):
-        for h in range(num * m * n):  # h=> each conv op
-            i = int(h / (m * n))  # progress of current feature map (for id)
-            l = int(h % (m * n))  # ???
-            j = int(l / n)  # ???/n
-            k = int(l % n)  # progress at current line
 
-            # reuse only if it's the first
-            if (j == 0) and (k == 0):
-                rr = False
-            else:
-                rr = True
-
-            # calculate the output of the convolution fliter
-            output = output.write(
-                (i * m + j) * n + k,
-                tf.identity(
-                    small_cnn(
+        for h in range(num * m * n):
+            i = int(h / (m*n))
+            l = int(h % (m*n))
+            j = int(l / n)
+            k = int(l % n)
+            slicing = slicing.write(h,
                         tf.slice(x, [0, j * stride, k * stride, 0],
-                                 [-1, a, b, -1]), num_conv, i, j, k, rr,
-                        keep_prob)))
-            #small_cnn(x, num_conv, id, j, k, reuse, keep_prob) [j, k not used]
-            pass
-        pass
+                                    [-1, a, b, -1]))
+    with tf.name_scope('scn'):
+        scn_input = slicing.concat()
+        output = small_cnn(scn_input, num_conv, keep_prob)
+        output = tf.reshape(output, [m * n, -1, num * num_conv])
 
-    with tf.name_scope('output_concated'):
-        # return the concated and reshaped data of output
-        for i in range(m):
-            for j in range(n):
-                for k in range(num):
-                    if (j == 0) and (k == 0) and (i == 0):
-                        output_ = output.read((k * m + i) * n + j)
-                    else:
-                        output_ = tf.concat(
-                            [output_,
-                             output.read((k * m + i) * n + j)], 1)
-
-    with tf.name_scope('global_avg_pool'):
-        # Global avg pooling
-        scscn_out = tf.reshape(
-            avg_pool(tf.reshape(output_, [-1, m, n, num * num_conv]), 5, 5),
-            [-1, num_conv]), keep_prob
-        print('SCSCN Output: {}'.format(scscn_out))
-        return scscn_out
-    pass
+    return tf.reduce_mean(output, 0), keep_prob
 
 
-def weight_variable(shape):  #This fn is never used?
+def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.05)
     return tf.Variable(initial)
 
@@ -251,6 +219,7 @@ def main(_):
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
         print('Saving graph to: %s' % graph_location)
+
         writer = tf.summary.FileWriter(
             graph_location, graph=tf.get_default_graph())
 
@@ -280,24 +249,20 @@ def main(_):
             print('[saver] Failed to load parameter: {}'.format(e))
 
         t0 = time.clock()
-        rt = 0.005
-        #for i in range(150000):
-        for i in range(30000):
+
+        rt = 1e-3
+        for i in range(140001):
             # Get the data of next batch
-            bs = 96
-            batch = mnist.train.next_batch(bs)
-            #if i % 1000 == 0:
-            if i % 100 == 0:
-                #if i == 60000:
-                if i == 500:
-                    rt = 0.001
+            batch = mnist.train.next_batch(60)
+            if i % 1000 == 0:
+                # rt = rt * 0.95
+                if i == 600000:
+                    rt = 3e-4
                     print('new rt: {}'.format(rt))
-                if i == 2500:
+                if i == 1000000:
                     rt = 1e-4
                     print('new rt: {}'.format(rt))
-                if i == 3400:
-                    rt = 3e-5
-                    print('new rt: {}'.format(rt))
+
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
@@ -307,6 +272,7 @@ def main(_):
                         y_: accuracy_batch[1],
                         keep_prob: 1.0
                     })
+                    
                 print('%g, %g, %g' % (i, train_accuracy / 50,
                                       (time.clock() - t0)))
                 t0 = time.clock()
