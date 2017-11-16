@@ -23,7 +23,7 @@ FLAGS = None
 
 
 def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
-    print('small_cnn input => {}'.format(x))
+    print('[small_cnn] input => {}'.format(x))
 
     #Leaky relu
     lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
@@ -67,7 +67,7 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
             b_fc = bias_variable_([num_conv], id, 0, 0)
             h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
 
-        print('small_cnn output => {}'.format(h_fc))
+        print('[small_cnn] output <= {}'.format(h_fc))
         return h_fc
     pass
 
@@ -246,14 +246,17 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'lrelu_)_dynamic_grad_)_adam_)_remove_rc1'
+        run_description = 'l2_lrelu'
         import time
-        #graph_location = tempfile.mkdtemp()
-        graph_location = '/tmp/saved_models/' + run_description + str(
-            time.time())
+
+        graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
         print('Saving graph to: %s' % graph_location)
         writer = tf.summary.FileWriter(
             graph_location, graph=tf.get_default_graph())
+
+        saver = tf.train.Saver()
+        save_location = '/tmp/saved_models/' + run_description + '/saved'
+        recover_location = '/tmp/saved_models/' + run_description + '/'
 
         # Loss
         tf.summary.scalar("loss", cross_entropy)
@@ -264,18 +267,31 @@ def main(_):
     with tf.Session(config=config) as sess:
 
         sess.run(tf.global_variables_initializer())
+        try:
+            import os
+            if (True):
+                saver.restore(sess,
+                              tf.train.latest_checkpoint(recover_location))
+                print('[saver] Parameter loaded from {}'.format(
+                    tf.train.latest_checkpoint(recover_location)))
+            else:
+                print('[saver] Checkpoint not found.')
+        except Exception as e:
+            print('[saver] Failed to load parameter: {}'.format(e))
+
         t0 = time.clock()
-        rt = 0.001
+        rt = 0.005
         #for i in range(150000):
         for i in range(30000):
             # Get the data of next batch
-            bs = 64
+            bs = 96
             batch = mnist.train.next_batch(bs)
             #if i % 1000 == 0:
             if i % 100 == 0:
                 #if i == 60000:
                 if i == 500:
                     rt = 0.001
+                    print('new rt: {}'.format(rt))
                 if i == 2500:
                     rt = 1e-4
                     print('new rt: {}'.format(rt))
@@ -302,6 +318,11 @@ def main(_):
                     keep_prob: 1.0
                 })
                 writer.add_summary(summary, i * bs)
+                if (i % 500 == 0):
+                    real_location = saver.save(
+                        sess, save_location)  #, global_step=i)
+                    print("[saver] Model saved at {}".format(real_location))
+                    pass
                 pass
 
             # Train
