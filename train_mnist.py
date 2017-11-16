@@ -43,8 +43,8 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
 
     with tf.variable_scope('conv3', reuse = reuse):
         W_conv3 = weight_variable_(
-            [5,
-             5,
+            [3,
+             3,
              64,
              64],
             id, 0, 0)
@@ -115,7 +115,7 @@ def scscn(x, num, num_conv):
     with tf.name_scope('output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        output = tf.TensorArray('float32', num * m * n)
+        slicing = tf.TensorArray('float32', num * m * n)
 
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
@@ -126,29 +126,15 @@ def scscn(x, num, num_conv):
             l = int(h % (m*n))
             j = int(l / n)
             k = int(l % n)
-            if (j == 0)and(k == 0):
-                rr = False
-            # calculate the output of the convolution fliter
-            output = output.write((i * m + j ) * n + k,
-                        tf.identity(small_cnn(
-                                tf.slice(x, [0, j * stride, k * stride, 0],
-                                    [-1, a, b, -1]),
-                                        num_conv, i, j, k, rr, keep_prob)))
-            rr = True
-    # return the concated and reshaped data of output
-    for i in range(m):
-        for j in range(n):
-            for k in range(num):
-                if (j == 0)and(k == 0)and(i == 0):
-                    output_ = output.read((k * m + i ) * n + j)
-                else:
-                    output_ = tf.concat([output_,
-                                    output.read((k * m + i ) * n + j )], 1)
-    return tf.reshape(avg_pool(tf.reshape(output_,
-                      [-1,
-                      m,
-                      n,
-                      num * num_conv]), 5, 5), [-1, num_conv]), keep_prob
+            slicing = slicing.write(h,
+                        tf.slice(x, [0, j * stride, k * stride, 0],
+                                    [-1, a, b, -1]))
+    with tf.name_scope('scn'):
+        scn_input = slicing.concat()
+        output = small_cnn(scn_input, num_conv, keep_prob)
+        output = tf.reshape(output, [m * n, -1, num * num_conv])
+
+    return tf.reduce_mean(output, 0), keep_prob
 
 
 def weight_variable(shape):
@@ -210,21 +196,23 @@ def main(_):
         print('Saving graph to: %s' % graph_location)
         train_writer = tf.summary.FileWriter(graph_location)
         train_writer.add_graph(tf.get_default_graph())
+        merged = tf.summary.merge_all()
 
     # Start to run
     with tf.Session(config=config) as sess:
 
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
-        rt = 0.001
-        for i in range(150000):
+        rt = 1e-3
+        for i in range(140001):
             # Get the data of next batch
             batch = mnist.train.next_batch(60)
             if i % 1000 == 0:
-                if i == 60000:
+                # rt = rt * 0.95
+                if i == 600000:
+                    rt = 3e-4
+                if i == 1000000:
                     rt = 1e-4
-                if i == 100000:
-                    rt = 3e-5
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
