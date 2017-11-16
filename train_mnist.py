@@ -19,7 +19,7 @@ FLAGS = None
 # convolution fliter of SCSCN
 
 
-def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
+def small_cnn(x, num_conv, keep_prob, id = 0, j = 0, k = 0, reuse = False):
     with tf.variable_scope('conv1', reuse = reuse):
         W_conv1 = weight_variable_(
             [5,
