@@ -223,7 +223,6 @@ def main(_):
         for i in range(150000):
             # Get the data of next batch
             batch = mnist.train.next_batch(60)
-            #Since we have adam as optimizer, do we really need this? --hxb
             if i % 1000 == 0:
                 if i == 60000:
                     lr = 1e-4
@@ -257,8 +256,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--data_dir',
         type=str,
-        default=
-        '/tmp/tensorflow/mnist/input_data', 
+        default='/tmp/tensorflow/mnist/input_data',
         help='Directory for storing input data')
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
