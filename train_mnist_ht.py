@@ -19,21 +19,35 @@ FLAGS = None
 # convolution fliter of SCSCN
 
 
-def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
-    with tf.variable_scope('conv1', reuse=reuse):
-        W_conv1 = weight_variable_([5, 5, x.get_shape().as_list()[3], 32], id,
-                                   0, 0)
+def small_cnn(x, num_conv, keep_prob, id = 0, j = 0, k = 0, reuse = False):
+    with tf.variable_scope('conv1', reuse = reuse):
+        W_conv1 = weight_variable_(
+            [5,
+             5,
+             x.get_shape().as_list()[3],
+             32],
+            id, 0, 0)
         b_conv1 = bias_variable_([32], id, 0, 0)
         h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
-    with tf.variable_scope('conv2', reuse=reuse):
-        W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
+    with tf.variable_scope('conv2', reuse = reuse):
+        W_conv2 = weight_variable_(
+            [5,
+             5,
+             32,
+             64],
+            id, 0, 0)
         b_conv2 = bias_variable_([64], id, 0, 0)
         h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
         h_pool1 = avg_pool(h_conv2, 2, 2)
 
-    with tf.variable_scope('conv3', reuse=reuse):
-        W_conv3 = weight_variable_([3, 3, 64, 64], id, 0, 0)
+    with tf.variable_scope('conv3', reuse = reuse):
+        W_conv3 = weight_variable_(
+            [5,
+             5,
+             64,
+             64],
+            id, 0, 0)
         b_conv3 = bias_variable_([64], id, 0, 0)
         h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
 
@@ -41,13 +55,13 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
         h_pool2 = avg_pool(h_conv3, 2, 2)
         h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
-    with tf.variable_scope('fc1', reuse=reuse):
+    with tf.variable_scope('fc1', reuse = reuse):
         W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
         b_fc1 = bias_variable_([1024], id, 0, 0)
         h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    with tf.variable_scope('fc', reuse=reuse):
+    with tf.variable_scope('fc', reuse = reuse):
         W_fc = weight_variable_([1024, num_conv], id, 0, 0)
         b_fc = bias_variable_([num_conv], id, 0, 0)
         h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
@@ -62,16 +76,13 @@ def conv2d(x, W):
 def conv2d_(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='VALID')
 
-
 def avg_pool(x, m, n):
-    return tf.nn.avg_pool(
-        x, ksize=[1, m, n, 1], strides=[1, m, n, 1], padding='SAME')
-
+    return tf.nn.avg_pool(x, ksize=[1, m, n, 1],
+                          strides=[1, m, n, 1], padding='SAME')
 
 def max_pool(x, m, n):
-    return tf.nn.max_pool(
-        x, ksize=[1, m, n, 1], strides=[1, m, n, 1], padding='SAME')
-
+    return tf.nn.max_pool(x, ksize=[1, m, n, 1],
+                          strides=[1, m, n, 1], padding='SAME')
 
 def scscn(x, num, num_conv):
     with tf.name_scope('kernal_size'):
@@ -100,8 +111,6 @@ def scscn(x, num, num_conv):
         # Size:
         m = int((input_m - a) / stride + 1)
         n = int((input_n - b) / stride + 1)
-        print('m: {}\nn: {}'.format(m,n))
-        print('----------------------------')
 
     with tf.name_scope('output'):
         # Output:
@@ -113,17 +122,13 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('fliter'):
         for h in range(num * m * n):
-            i = int(h / (m * n))  # location in map
-            l = int(h % (m * n))  #
-            j = int(l / n)  #
-            k = int(l % n)  # =h
-            print('h: {}\ni: {}\nl: {}\nj :{}\nk: {}'.format(h, i, l, j, l))
-            print('slice: {} | {}'.format([0, j * stride, k * stride, 0],
-                                          [-1, a, b, -1]))
-            print('----------------------------')
+            i = int(h / (m*n))
+            l = int(h % (m*n))
+            j = int(l / n)
+            k = int(l % n)
             slicing = slicing.write(h,
-                                    tf.slice(x, [0, j * stride, k * stride, 0],
-                                             [-1, a, b, -1]))
+                        tf.slice(x, [0, j * stride, k * stride, 0],
+                                    [-1, a, b, -1]))
     with tf.name_scope('scn'):
         scn_input = slicing.concat()
         output = small_cnn(scn_input, num_conv, keep_prob)
@@ -166,8 +171,8 @@ def main(_):
     y_conv, keep_prob = scscn(x, 1, 10)
 
     with tf.name_scope('loss'):
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
-            labels=y_, logits=y_conv)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_,
+                                                                logits=y_conv)
     cross_entropy = tf.reduce_mean(cross_entropy)
 
     with tf.name_scope('adam_optimizer'):
@@ -181,7 +186,9 @@ def main(_):
 
     with tf.name_scope('config'):
         config = tf.ConfigProto(
-            inter_op_parallelism_threads=256, intra_op_parallelism_threads=64)
+            inter_op_parallelism_threads = 256,
+            intra_op_parallelism_threads = 64
+        )
         config.gpu_options.allow_growth = True
 
     with tf.name_scope('graph'):
@@ -199,7 +206,7 @@ def main(_):
         rt = 1e-3
         for i in range(140001):
             # Get the data of next batch
-            batch = mnist.train.next_batch(60)
+            batch = mnist.train.next_batch(5)
             if i % 1000 == 0:
                 # rt = rt * 0.95
                 if i == 600000:
@@ -212,27 +219,22 @@ def main(_):
                     accuracy_batch = mnist.test.next_batch(200)
                     train_accuracy += accuracy.eval(feed_dict={
                         x: accuracy_batch[0],
-                        y_: accuracy_batch[1],
-                        keep_prob: 1.0
-                    })
-                print('%g, %g, %g' % (i / 1000, train_accuracy / 50,
-                                      (time.clock() - t0)))
+                            y_: accuracy_batch[1], keep_prob: 1.0})
+                print(
+                    '%g, %g, %g' %
+                    (i / 1000, train_accuracy / 50, (time.clock() - t0)))
                 t0 = time.clock()
             # Train
-            train_step.run(feed_dict={
-                x: batch[0],
-                y_: batch[1],
-                keep_prob: 0.5,
-                rate: rt
-            })
-
+            train_step.run(
+                feed_dict={x: batch[0],
+                           y_: batch[1],
+                           keep_prob: 0.5,
+                           rate: rt})
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--data_dir',
-        type=str,
-        default='/tmp/tensorflow/mnist/input_data',
-        help='Directory for storing input data')
+    parser.add_argument('--data_dir', type=str,
+                        default='/tmp/tensorflow/mnist/input_data',
+                        help='Directory for storing input data')
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
