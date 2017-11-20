@@ -280,35 +280,41 @@ def main(_):
             print('[saver] Failed to load parameter: {}'.format(e))
 
         t0 = time.clock()
-        rt = 0.001
+        rt = 1e-1
+        train_loss = 0
         #for i in range(150000):
-        for i in range(150000):
+        for i in range(15000):
             # Get the data of next batch
             bs = 64
             batch = mnist.train.next_batch(bs)
             #if i % 1000 == 0:
-            if i % 100 == 0:
-                #if i == 60000:
-                if i == 100:
-                    rt = 0.0001
-                    print('new rt: {}'.format(rt))
-                if i == 5000:
-                    rt = 1e-4
-                    print('new rt: {}'.format(rt))
-                if i == 10000:
+            if i % 1000 == 0:
+                if i == 300:
                     rt = 3e-5
                     print('new rt: {}'.format(rt))
+
                 # Print the accuracy
                 train_accuracy = 0
+                validation_loss = 0
                 for index in range(50):
                     accuracy_batch = mnist.test.next_batch(200)
-                    train_accuracy += accuracy.eval(feed_dict={
-                        x: accuracy_batch[0],
-                        y_: accuracy_batch[1],
-                        keep_prob: 1.0
-                    })
-                print('%g, %g, %g' % (i, train_accuracy / 50,
-                                      (time.clock() - t0)))
+                    new_acc, v_loss = sess.run(
+                        [accuracy, cross_entropy],
+                        feed_dict={
+                            x: accuracy_batch[0],
+                            y_: accuracy_batch[1],
+                            keep_prob: 1.0
+                        })
+                    train_accuracy += new_acc
+                    validation_loss += v_loss
+                    pass
+                train_accuracy /= 50
+                validation_loss /= 50
+
+                print(
+                    'epoch: %g|acc: %g|time: %g|v_loss: %g|train_loss: %g|overfit: %g|'
+                    % (i, train_accuracy, (time.clock() - t0), validation_loss,
+                       train_loss, validation_loss - train_loss))
                 t0 = time.clock()
 
                 # Log loss
@@ -318,8 +324,9 @@ def main(_):
                     keep_prob: 1.0
                 })
                 writer.add_summary(summary, i * bs)
+
                 # Save parameters
-                if (i % 10000 == 0):
+                if (i % 5000 == 0):
                     real_location = saver.save(
                         sess, save_location, global_step=999999)
                     print("[saver] Model saved at {}".format(real_location))
@@ -327,12 +334,14 @@ def main(_):
                 pass
 
             # Train
-            train_step.run(feed_dict={
-                x: batch[0],
-                y_: batch[1],
-                keep_prob: 0.5,
-                rate: rt
-            })
+            _, train_loss = sess.run(
+                [train_step, cross_entropy],
+                feed_dict={
+                    x: batch[0],
+                    y_: batch[1],
+                    keep_prob: 0.5,
+                    rate: rt
+                })
     #"""
 
 
