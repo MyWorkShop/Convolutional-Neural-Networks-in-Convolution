@@ -220,10 +220,9 @@ def main(_):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=y_, logits=y_conv)
 
-        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+        #reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
-        cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
-            reg_losses)
+        cross_entropy = tf.reduce_mean(cross_entropy) #+ tf.reduce_mean(reg_losses)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
@@ -280,16 +279,16 @@ def main(_):
             print('[saver] Failed to load parameter: {}'.format(e))
 
         t0 = time.clock()
-        rt = 1e-1
+        rt = 0.001
         train_loss = 0
         #for i in range(150000):
-        for i in range(15000):
+        for i in range(150000):
             # Get the data of next batch
             bs = 64
             batch = mnist.train.next_batch(bs)
             #if i % 1000 == 0:
             if i % 1000 == 0:
-                if i == 300:
+                if i == 6000:
                     rt = 3e-5
                     print('new rt: {}'.format(rt))
 
