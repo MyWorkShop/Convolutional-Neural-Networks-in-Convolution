@@ -132,6 +132,8 @@ def main(_):
         except Exception as e:
             print('[saver] Failed to load parameter: {}'.format(e))
 
+        import numpy as np
+        print('[total_trainable]: {}'.format(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
         t0 = time.clock()
         rt = 0.001
         train_loss = 0

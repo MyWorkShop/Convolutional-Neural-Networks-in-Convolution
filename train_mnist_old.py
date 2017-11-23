@@ -23,34 +23,38 @@ FLAGS = None
 
 
 def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
-    print('[small_cnn] input => {}'.format(x))
+    if not reuse:
+        print('[small_cnn] input => {}'.format(x))
 
     #Leaky relu
     lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
     relu = lambda x: tf.nn.relu(x)
+    activation=relu
 
     with tf.name_scope('small_cnn'):
         with tf.variable_scope('conv1', reuse=reuse):
             W_conv1 = weight_variable_(
                 [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
             b_conv1 = bias_variable_([32], id, 0, 0)
-            h_conv1 = lrelu(conv2d(x, W_conv1) + b_conv1)
+            h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
 
+        # '''
         with tf.variable_scope('conv2', reuse=reuse):
             W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
             b_conv2 = bias_variable_([64], id, 0, 0)
-            h_conv2 = lrelu(conv2d(h_conv1, W_conv2) + b_conv2)
+            h_conv2 = activation(conv2d(h_conv1, W_conv2) + b_conv2)
             h_pool1 = avg_pool(h_conv2, 2, 2)
 
-        #'''
+        '''
         with tf.variable_scope('conv3', reuse=reuse):
             W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
             b_conv3 = bias_variable_([64], id, 0, 0)
-            h_conv3 = lrelu(conv2d(h_pool1, W_conv3) + b_conv3)
-        #'''
+            h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
+        '''
 
         with tf.variable_scope('pool2'):
-            h_pool2 = avg_pool(h_conv3, 2, 2)
+            h_pool2 = avg_pool(h_pool1, 2, 2)
+            # h_pool2 = avg_pool(h_conv3, 2, 2)
             h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
         with tf.variable_scope(
@@ -59,7 +63,7 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
                 regularizer=tf.contrib.layers.l2_regularizer(scale=0.01)):
             W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
             b_fc1 = bias_variable_([1024], id, 0, 0)
-            h_fc1 = lrelu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+            h_fc1 = activation(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
             h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
         with tf.variable_scope('fc', reuse=reuse):
@@ -67,7 +71,8 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
             b_fc = bias_variable_([num_conv], id, 0, 0)
             h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
 
-        print('[small_cnn] output <= {}'.format(h_fc))
+        if not reuse:
+            print('[small_cnn] output <= {}'.format(h_fc))
         return h_fc
     pass
 
@@ -222,7 +227,8 @@ def main(_):
 
         #reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
-        cross_entropy = tf.reduce_mean(cross_entropy) #+ tf.reduce_mean(reg_losses)
+        cross_entropy = tf.reduce_mean(
+            cross_entropy)  #+ tf.reduce_mean(reg_losses)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
@@ -245,7 +251,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu'
+        run_description = 'relu_xconv2'
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -279,17 +285,27 @@ def main(_):
             print('[saver] Failed to load parameter: {}'.format(e))
 
         t0 = time.clock()
-        rt = 0.001
+        # rt = 0.001
+        rt = 1e-5
         train_loss = 0
+
+
+        import numpy as np
+        print('[total_trainable]: {}'.format(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
+
+
         #for i in range(150000):
-        for i in range(150000):
+        for i in range(160000):
             # Get the data of next batch
-            bs = 64
+            bs = 16
             batch = mnist.train.next_batch(bs)
             #if i % 1000 == 0:
             if i % 1000 == 0:
                 if i == 6000:
-                    rt = 3e-5
+                    rt = 5e-6
+                    print('new rt: {}'.format(rt))
+                if i == 18000:
+                    rt = 1e-6
                     print('new rt: {}'.format(rt))
 
                 # Print the accuracy
