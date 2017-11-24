@@ -43,8 +43,8 @@ def small_cnn(x, num_conv, keep_prob, id = 0, j = 0, k = 0, reuse = False):
 
     with tf.variable_scope('conv3', reuse = reuse):
         W_conv3 = weight_variable_(
-            [3,
-             3,
+            [5,
+             5,
              64,
              64],
             id, 0, 0)
@@ -126,11 +126,11 @@ def scscn(x, num, num_conv):
             l = int(h % (m*n))
             j = int(l / n)
             k = int(l % n)
-            slicing = slicing.write(h,
-                        tf.slice(x, [0, j * stride, k * stride, 0],
+            slicing = slicing.write(h, tf.slice(x, [0, j * stride, k * stride, 0],
                                     [-1, a, b, -1]))
     with tf.name_scope('scn'):
         scn_input = slicing.concat()
+        slicing.close().mark_used()
         output = small_cnn(scn_input, num_conv, keep_prob)
         output = tf.reshape(output, [m * n, -1, num * num_conv])
 
@@ -138,12 +138,12 @@ def scscn(x, num, num_conv):
 
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.05)
+    initial = tf.truncated_normal(shape, stddev=0.1)
     return tf.Variable(initial)
 
 
 def bias_variable(shape):
-    initial = tf.constant(0.0, shape=shape)
+    initial = tf.constant(0.1, shape=shape)
     return tf.Variable(initial)
 
 
@@ -196,7 +196,6 @@ def main(_):
         print('Saving graph to: %s' % graph_location)
         train_writer = tf.summary.FileWriter(graph_location)
         train_writer.add_graph(tf.get_default_graph())
-        merged = tf.summary.merge_all()
 
     # Start to run
     with tf.Session(config=config) as sess:
@@ -204,15 +203,14 @@ def main(_):
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
         rt = 1e-3
-        for i in range(140001):
+        for i in range(600000):
             # Get the data of next batch
-            batch = mnist.train.next_batch(60)
-            if i % 1000 == 0:
-                # rt = rt * 0.95
-                if i == 600000:
-                    rt = 3e-4
-                if i == 1000000:
+            batch = mnist.train.next_batch(15)
+            if i % 4000 == 0:
+                if i == 240000:
                     rt = 1e-4
+                if i == 480000:
+                    rt = 1e-5
                 # Print the accuracy
                 train_accuracy = 0
                 for index in range(50):
@@ -222,7 +220,7 @@ def main(_):
                             y_: accuracy_batch[1], keep_prob: 1.0})
                 print(
                     '%g, %g, %g' %
-                    (i / 1000, train_accuracy / 50, (time.clock() - t0)))
+                    (i / 4000, train_accuracy / 50, (time.clock() - t0)))
                 t0 = time.clock()
             # Train
             train_step.run(
