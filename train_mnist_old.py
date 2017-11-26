@@ -29,7 +29,7 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
     #Leaky relu
     lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
     relu = lambda x: tf.nn.relu(x)
-    activation=relu
+    activation = relu
 
     with tf.name_scope('small_cnn'):
         with tf.variable_scope('conv1', reuse=reuse):
@@ -44,13 +44,12 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
             b_conv2 = bias_variable_([64], id, 0, 0)
             h_conv2 = activation(conv2d(h_conv1, W_conv2) + b_conv2)
             h_pool1 = avg_pool(h_conv2, 2, 2)
-
-        '''
+        # '''
         with tf.variable_scope('conv3', reuse=reuse):
             W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
             b_conv3 = bias_variable_([64], id, 0, 0)
             h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
-        '''
+        # '''
 
         with tf.variable_scope('pool2'):
             h_pool2 = avg_pool(h_pool1, 2, 2)
@@ -285,14 +284,16 @@ def main(_):
             print('[saver] Failed to load parameter: {}'.format(e))
 
         t0 = time.clock()
-        # rt = 0.001
-        rt = 1e-5
+        rt = 0.001
+        # rt = 1e-5
         train_loss = 0
 
-
         import numpy as np
-        print('[total_trainable]: {}'.format(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
-
+        print('[total_trainable]: {}'.format(
+            np.sum([
+                np.prod(v.get_shape().as_list())
+                for v in tf.trainable_variables()
+            ])))
 
         #for i in range(150000):
         for i in range(160000):
@@ -302,23 +303,24 @@ def main(_):
             #if i % 1000 == 0:
             if i % 1000 == 0:
                 if i == 6000:
-                    rt = 5e-6
+                    rt = 5e-4
                     print('new rt: {}'.format(rt))
                 if i == 18000:
-                    rt = 1e-6
+                    rt = 1e-5
                     print('new rt: {}'.format(rt))
 
                 # Print the accuracy
                 train_accuracy = 0
                 validation_loss = 0
                 for index in range(50):
-                    accuracy_batch = mnist.test.next_batch(200)
+                    vbs = 200
+                    accuracy_batch = mnist.test.next_batch(vbs)
                     new_acc, v_loss = sess.run(
                         [accuracy, cross_entropy],
                         feed_dict={
                             x: accuracy_batch[0],
                             y_: accuracy_batch[1],
-                            keep_prob: 1.0
+                            keep_prob: 0.5,
                         })
                     train_accuracy += new_acc
                     validation_loss += v_loss
@@ -329,7 +331,8 @@ def main(_):
                 print(
                     'epoch: %g|acc: %g|time: %g|v_loss: %g|train_loss: %g|overfit: %g|'
                     % (i, train_accuracy, (time.clock() - t0), validation_loss,
-                       train_loss, validation_loss - train_loss))
+                       train_loss,
+                       (validation_loss / vbs - train_loss / bs) * 100))
                 t0 = time.clock()
 
                 # Log loss

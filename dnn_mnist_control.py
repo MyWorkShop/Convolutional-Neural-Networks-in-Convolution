@@ -129,8 +129,10 @@ def main(_):
                 # Print the accuracy
                 train_accuracy = 0
                 validation_loss = 0
+
                 for index in range(50):
-                    accuracy_batch = mnist.test.next_batch(200)
+                    vbs = 200
+                    accuracy_batch = mnist.test.next_batch(vbs)
                     new_acc, v_loss = sess.run(
                         [accuracy, cross_entropy],
                         feed_dict={
@@ -146,9 +148,9 @@ def main(_):
                 print(
                     'epoch: %g|acc: %g|time: %g|v_loss: %g|train_loss: %g|overfit: %g|'
                     % (i, train_accuracy, (time.clock() - t0), validation_loss,
-                       train_loss, validation_loss - train_loss))
+                       train_loss,
+                       (validation_loss / vbs - train_loss / bs) * 100))
                 t0 = time.clock()
-
                 # Log loss
                 summary = summary_op.eval(feed_dict={
                     x: accuracy_batch[0],
