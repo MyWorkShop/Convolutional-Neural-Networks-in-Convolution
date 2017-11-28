@@ -32,30 +32,33 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
     activation = relu
 
     with tf.name_scope('small_cnn'):
+        # '''
+        # [?,16,16,1] cs [5,5,1,32]
         with tf.variable_scope('conv1', reuse=reuse):
             W_conv1 = weight_variable_(
                 [5, 5, x.get_shape().as_list()[3], 32], id, 0, 0)
             b_conv1 = bias_variable_([32], id, 0, 0)
             h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
 
-        # '''
+        # [?,16,16,32] cs [5,5,32,64]
         with tf.variable_scope('conv2', reuse=reuse):
             W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
             b_conv2 = bias_variable_([64], id, 0, 0)
             h_conv2 = activation(conv2d(h_conv1, W_conv2) + b_conv2)
             h_pool1 = avg_pool(h_conv2, 2, 2)
-        # '''
+
+        # [?,16,16,64] cs [5,5,64,64]
         with tf.variable_scope('conv3', reuse=reuse):
             W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
             b_conv3 = bias_variable_([64], id, 0, 0)
             h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
-        # '''
 
+        # p[2,2]
         with tf.variable_scope('pool2'):
-            h_pool2 = avg_pool(h_pool1, 2, 2)
-            # h_pool2 = avg_pool(h_conv3, 2, 2)
+            h_pool2 = avg_pool(h_conv3, 2, 2)
             h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
+        # =1024=
         with tf.variable_scope(
                 'fc1',
                 reuse=reuse,
@@ -65,10 +68,12 @@ def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):  #j, k not used
             h_fc1 = activation(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
             h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
+        # =10=
         with tf.variable_scope('fc', reuse=reuse):
             W_fc = weight_variable_([1024, num_conv], id, 0, 0)
             b_fc = bias_variable_([num_conv], id, 0, 0)
             h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+        # '''
 
         if not reuse:
             print('[small_cnn] output <= {}'.format(h_fc))
@@ -175,7 +180,7 @@ def scscn(x, num, num_conv):
                             [output_,
                              output.read((k * m + i) * n + j)], 1)
 
-    with tf.name_scope('global_avg_pool'):
+    with tf.name_scope('avg_pool'):
         # Global avg pooling
         scscn_out = tf.reshape(
             avg_pool(tf.reshape(output_, [-1, m, n, num * num_conv]), 5, 5),
@@ -296,17 +301,17 @@ def main(_):
             ])))
 
         #for i in range(150000):
-        for i in range(160000):
+        for i in range(1600000):
             # Get the data of next batch
             bs = 16
             batch = mnist.train.next_batch(bs)
             #if i % 1000 == 0:
-            if i % 1000 == 0:
+            if i % 9000 == 0:
                 if i == 6000:
                     rt = 5e-4
                     print('new rt: {}'.format(rt))
-                if i == 18000:
-                    rt = 1e-5
+                if i == 58000:
+                    rt = 1e-4
                     print('new rt: {}'.format(rt))
 
                 # Print the accuracy

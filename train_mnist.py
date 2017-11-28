@@ -23,69 +23,57 @@ FLAGS = None
 
 
 # TODO: argument dismatch
-#def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):
-def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
+# num_conv=10,x=[?,16,16,1]
+def small_cnn(x,
+              num_conv,
+              keep_prob,
+              id=0,
+              j=0,
+              k=0,
+              reuse=False,
+              name='small_cnn'):
+
     print('[small_cnn] input => {}'.format(x))
     lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
-    with tf.variable_scope('conv1', reuse=reuse):
-        W_conv1 = weight_variable_([5, 5, x.get_shape().as_list()[3], 32], id,
-                                   0, 0)
-        b_conv1 = bias_variable_([32], id, 0, 0)
-        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
+    with tf.variable_scope(name, reuse=reuse):
 
-    with tf.variable_scope('conv2', reuse=reuse):
-        W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
-        b_conv2 = bias_variable_([64], id, 0, 0)
-        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        h_pool1 = avg_pool(h_conv2, 2, 2)
+        # [?,16,16,1]=>[?,12,12,1]
+        x = tf.layers.conv2d(
+            inputs=x,
+            filters=32,
+            kernel_size=[5, 5],
+            padding="valid",
+            activation=tf.nn.relu)
+        print('[small_cnn] conv1 == {}'.format(x))
 
-    with tf.variable_scope('conv3', reuse=reuse):
-        W_conv3 = weight_variable_([3, 3, 64, 64], id, 0, 0)
-        b_conv3 = bias_variable_([64], id, 0, 0)
-        h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
+        x = tf.layers.average_pooling2d(x, pool_size=[2, 2], strides=[1, 1])
+        print('[small_cnn] pool1  == {}'.format(x))
 
-    with tf.variable_scope('pool2'):
-        h_pool2 = avg_pool(h_conv3, 2, 2)
-        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
+        # [?,12,12,1]=>[?,10,10,1]
+        x = tf.layers.conv2d(
+            inputs=x,
+            filters=30,
+            kernel_size=[3, 3],
+            padding="valid",
+            activation=tf.nn.relu)
+        print('[small_cnn] conv2 == {}'.format(x))
 
-    with tf.variable_scope('fc1', reuse=reuse):
-        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
-        b_fc1 = bias_variable_([1024], id, 0, 0)
-        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        # x = tf.layers.average_pooling2d(x, pool_size=[9, 9], strides=[1, 1])
+        x = tf.reshape(x, [-1, 9 * 9 * 30])
+        x = tf.layers.dense(x, 64, activation=tf.nn.relu)
+        x = tf.nn.dropout(x, keep_prob)
+        x = tf.layers.dense(x, 10, activation=tf.nn.relu)
+        pass
 
-    with tf.variable_scope('fc', reuse=reuse):
-        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
-        b_fc = bias_variable_([num_conv], id, 0, 0)
-        h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
-
-    print('[small_cnn] output <= {}'.format(h_fc))
-    return h_fc
-
-
-def conv2d(x, W):
-    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
-
-
-def conv2d_(x, W):
-    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='VALID')
-
-
-def avg_pool(x, m, n):
-    return tf.nn.avg_pool(
-        x, ksize=[1, m, n, 1], strides=[1, m, n, 1], padding='SAME')
-
-
-def max_pool(x, m, n):
-    return tf.nn.max_pool(
-        x, ksize=[1, m, n, 1], strides=[1, m, n, 1], padding='SAME')
+    print('[small_cnn] output <= {}'.format(x))
+    return x
 
 
 # x=>[bs,784]
 # num=>num of output channels
-def scscn(x, num, num_conv):
+def scscn(x, num, num_conv,e_size=1):
     with tf.name_scope('kernal_size'):
         # Kernal size:
         a = 16
@@ -139,31 +127,18 @@ def scscn(x, num, num_conv):
                                              [-1, a, b, -1]))
     with tf.name_scope('scn'):
         scn_input = slicing.concat()
-        output = small_cnn(scn_input, num_conv, keep_prob)
+        scnns = []
+        for i in range(e_size):  # Size of ensemble
+            scnns.append(
+                small_cnn(scn_input, num_conv, keep_prob, name='scnn'+str(i)))
+
+        scnn_e = tf.concat(scnns, 1)
+        print('[concated ensemble] output: {} size: {}'.format(scnn_e,scnns.__len__()))
+        scnn_e = tf.layers.dense(scnn_e, 64)
+        output = tf.layers.dense(scnn_e, 10)
         output = tf.reshape(output, [m * n, -1, num * num_conv])
 
     return tf.reduce_mean(output, 0), keep_prob
-
-
-def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.05)
-    return tf.Variable(initial)
-
-
-def bias_variable(shape):  #This fn is never used?
-    initial = tf.constant(0.0, shape=shape)
-    return tf.Variable(initial)
-
-
-#Reuse if exists
-def weight_variable_(shape, id, j, k):
-    return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
-                           shape, None, tf.random_normal_initializer(0, 0.05))
-
-
-def bias_variable_(shape, id, j, k):
-    return tf.get_variable("biases" + str(id) + "a" + str(j) + "a" + str(k),
-                           shape, None, tf.constant_initializer(0.0))
 
 
 def main(_):
@@ -178,7 +153,8 @@ def main(_):
         y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
     # The main model
-    y_conv, keep_prob = scscn(x, 1, 10)
+    e_size=3
+    y_conv, keep_prob = scscn(x, 1, 10,e_size=e_size)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
@@ -186,8 +162,8 @@ def main(_):
 
         reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
-        cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
-            reg_losses)
+        cross_entropy = tf.reduce_mean(
+            cross_entropy)  #+ tf.reduce_mean(reg_losses)
 
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
@@ -211,7 +187,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu'
+        run_description = 'l2_lrelu_aug'+str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -225,7 +201,8 @@ def main(_):
         recover_location = '/tmp/saved_models/' + run_description + '/'
 
         # Loss
-        tf.summary.scalar("loss", cross_entropy)
+        tf.summary.scalar("t_loss", cross_entropy)
+        tf.summary.scalar("t_acc", accuracy)
         summary_op = tf.summary.merge_all()
 
     #"""
@@ -248,11 +225,14 @@ def main(_):
         t0 = time.clock()
 
         rt = 1e-3
+        # rt = 1e-2
+        train_loss = 0
         for i in range(140001):
+            bs = 64
             # Get the data of next batch
-            batch = mnist.train.next_batch(60)
+            batch = mnist.train.next_batch(bs)
             if i % 1000 == 0:
-                # rt = rt * 0.95
+                rt = rt * 0.95
                 if i == 600000:
                     rt = 3e-4
                     print('new rt: {}'.format(rt))
@@ -262,17 +242,37 @@ def main(_):
 
                 # Print the accuracy
                 train_accuracy = 0
-                for index in range(50):
-                    accuracy_batch = mnist.test.next_batch(200)
-                    train_accuracy += accuracy.eval(feed_dict={
-                        x: accuracy_batch[0],
-                        y_: accuracy_batch[1],
-                        keep_prob: 1.0
-                    })
+                validation_loss = 0
 
-                print('%g, %g, %g' % (i, train_accuracy / 50,
-                                      (time.clock() - t0)))
+                for index in range(50):
+                    vbs = 200
+                    accuracy_batch = mnist.test.next_batch(vbs)
+                    new_acc, v_loss = sess.run(
+                        [accuracy, cross_entropy],
+                        feed_dict={
+                            x: accuracy_batch[0],
+                            y_: accuracy_batch[1],
+                            keep_prob: 0.5,
+                        })
+                    train_accuracy += new_acc
+                    validation_loss += v_loss
+
+                train_accuracy /= 50
+                validation_loss /= 50
+                overfit = (validation_loss / vbs - train_loss / bs) * 100
+                print(
+                    'epoch: %g|acc: %g|time: %g|v_loss: %g|train_loss: %g|overfit: %g|lr: %g'
+                    % (i, train_accuracy, (time.clock() - t0), validation_loss,
+                       train_loss, overfit, rt))
                 t0 = time.clock()
+
+                # Log other
+                summary = tf.Summary()
+                summary.value.add(tag='acc_v', simple_value=train_accuracy)
+                summary.value.add(tag='v_loss', simple_value=validation_loss)
+                summary.value.add(tag='lr', simple_value=rt)
+                summary.value.add(tag='overfit', simple_value=overfit)
+                writer.add_summary(summary, i)
 
                 # Log loss
                 summary = summary_op.eval(feed_dict={
@@ -280,9 +280,9 @@ def main(_):
                     y_: accuracy_batch[1],
                     keep_prob: 1.0
                 })
-                writer.add_summary(summary, i * bs)
+                writer.add_summary(summary, i)
                 # Save parameters
-                if (i % 1000 == 0):
+                if (i % 5000 == 0):
                     real_location = saver.save(
                         sess, save_location, global_step=999999
                     )  # Making sure it's the lastest_checkpoint
@@ -291,12 +291,14 @@ def main(_):
                 pass
 
             # Train
-            train_step.run(feed_dict={
-                x: batch[0],
-                y_: batch[1],
-                keep_prob: 0.5,
-                rate: rt
-            })
+            _, train_loss = sess.run(
+                [train_step, cross_entropy],
+                feed_dict={
+                    x: batch[0],
+                    y_: batch[1],
+                    keep_prob: 0.5,
+                    rate: rt
+                })
     #"""
 
 
