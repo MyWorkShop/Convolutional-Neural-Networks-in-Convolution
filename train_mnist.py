@@ -39,7 +39,7 @@ def small_cnn(x,
     elu = lambda x: tf.nn.elu(x)
     with tf.variable_scope(name, reuse=reuse):
 
-        # [?,16,16,1]=>[?,12,12,1]
+        # [?,16,16,1]=>[?,12,12,32]
         x = tf.layers.conv2d(
             inputs=x,
             filters=32,
@@ -48,21 +48,21 @@ def small_cnn(x,
             activation=tf.nn.relu)
         print('[small_cnn] conv1 == {}'.format(x))
 
-        x = tf.layers.average_pooling2d(x, pool_size=[2, 2], strides=[1, 1])
-        print('[small_cnn] pool1  == {}'.format(x))
-
-        # [?,12,12,1]=>[?,10,10,1]
+        # [?,12,12,32]=>[?,8,8,64]
         x = tf.layers.conv2d(
             inputs=x,
-            filters=30,
-            kernel_size=[3, 3],
+            filters=64,
+            kernel_size=[5, 5],
             padding="valid",
             activation=tf.nn.relu)
         print('[small_cnn] conv2 == {}'.format(x))
 
-        # x = tf.layers.average_pooling2d(x, pool_size=[9, 9], strides=[1, 1])
-        x = tf.reshape(x, [-1, 9 * 9 * 30])
-        x = tf.layers.dense(x, 64, activation=tf.nn.relu)
+        # x = tf.layers.average_pooling2d(x, pool_size=[2, 2], strides=[1, 1])
+        # print('[small_cnn] pool1  == {}'.format(x))
+
+        x = tf.reshape(x, [-1, 8 * 8 * 64])
+
+        x = tf.layers.dense(x, 128, activation=tf.nn.relu)
         x = tf.nn.dropout(x, keep_prob)
         x = tf.layers.dense(x, 10, activation=tf.nn.relu)
         pass
@@ -73,7 +73,7 @@ def small_cnn(x,
 
 # x=>[bs,784]
 # num=>num of output channels
-def scscn(x, num, num_conv,e_size=1):
+def scscn(x, num, num_conv, e_size=1):
     with tf.name_scope('kernal_size'):
         # Kernal size:
         a = 16
@@ -125,20 +125,41 @@ def scscn(x, num, num_conv,e_size=1):
             slicing = slicing.write(h,
                                     tf.slice(x, [0, j * stride, k * stride, 0],
                                              [-1, a, b, -1]))
-    with tf.name_scope('scn'):
+    with tf.name_scope('scn_ensemble'):
         scn_input = slicing.concat()
+        print('[sliced_img]: {}'.format(scn_input))
         scnns = []
         for i in range(e_size):  # Size of ensemble
-            scnns.append(
-                small_cnn(scn_input, num_conv, keep_prob, name='scnn'+str(i)))
+            scnn = small_cnn(
+                scn_input, num_conv, keep_prob, name='scnn' + str(i))
+            scnn = tf.reshape(scnn, [m * n, -1, num_conv])
+            scnn = tf.reduce_min(scnn, 0)
+            scnns.append(scnn)
+            print('[ensemble_member] output: {}'.format(scnn))
+            pass
 
-        scnn_e = tf.concat(scnns, 1)
-        print('[concated ensemble] output: {} size: {}'.format(scnn_e,scnns.__len__()))
-        scnn_e = tf.layers.dense(scnn_e, 64)
-        output = tf.layers.dense(scnn_e, 10)
-        output = tf.reshape(output, [m * n, -1, num * num_conv])
+        # scnn_e = tf.concat(scnns, 0)
+        scnn_e = tf.add_n(scnns) / e_size
+        # scnn_e = tf.stack(scnns, 0)
+        print('[concated_ensemble] output: {} size: {}'.format(
+            scnn_e, scnns.__len__()))
 
-    return tf.reduce_mean(output, 0), keep_prob
+        # output = tf.layers.conv1d(
+        # inputs=scnn_e,
+        # filters=num_conv,
+        # kernel_size=[num_conv],
+        # strides=[1],
+        # padding="valid",
+        # activation=tf.nn.relu)
+        # print('[scscn_pre_out]: {}'.format(output))
+        # output = tf.reshape(output, [-1, 10])
+
+        output = scnn_e
+        print('[scsnn_output]: {}'.format(output))
+        # scnn = tf.reshape(scnn[m * n, -1, num_conv * e_size])
+        # scnn = tf.reduce_mean(scnn, 0)
+
+    return output, keep_prob
 
 
 def main(_):
@@ -153,8 +174,8 @@ def main(_):
         y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
     # The main model
-    e_size=3
-    y_conv, keep_prob = scscn(x, 1, 10,e_size=e_size)
+    e_size = 2
+    y_conv, keep_prob = scscn(x, 1, 10, e_size=e_size)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
@@ -175,6 +196,7 @@ def main(_):
     #"""
 
     with tf.name_scope('accuracy'):
+        print('[y_conv]: {}'.format(y_conv))
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
         correct_prediction = tf.cast(correct_prediction, tf.float32)
         accuracy = tf.reduce_mean(correct_prediction)
@@ -187,7 +209,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu_aug'+str(e_size)
+        run_description = 'l2_lrelu_aug_conv1d' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
