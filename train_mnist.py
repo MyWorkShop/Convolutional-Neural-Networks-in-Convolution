@@ -127,30 +127,11 @@ def scscn(x, num, num_conv, e_size=1):
                                              [-1, a, b, -1]))
     with tf.name_scope('scn_ensemble'):
         scn_input = slicing.concat()
-        print('[sliced_img]: {}'.format(scn_input))
-        scnns = []
-        for i in range(e_size):  # Size of ensemble
-            scnn = small_cnn(
-                scn_input, num_conv, keep_prob, name='scnn' + str(i))
-            scnn = tf.reshape(scnn, [m * n, -1, num_conv])
-            scnn = tf.reduce_min(scnn, 0)
-            scnns.append(scnn)
-            print('[ensemble_member] output: {}'.format(scnn))
-            pass
-
-        # scnn_e = tf.concat(scnns, 0)
-        scnn_e = tf.stack(scnns, 0)
-        scnn_e = tf.reduce_min(scnn_e, 0)
-        print('[concated_ensemble] output: {} size: {}'.format(
-        scnn_e, scnns.__len__()))
-
-        # scnn_e = tf.reshape(scnn_e, [m * n, -1, num_conv * e_size])
-        # scnn_e = tf.reduce_mean(scnn_e, 0)
-        # scnn_e = tf.layers.dense(scnn_e, 10, activation=tf.nn.relu)
-        output = scnn_e
-        print('[scsnn_output]: {}'.format(output))
-
-    return output, keep_prob
+        slicing.close().mark_used()
+        output = small_cnn(scn_input, num_conv, keep_prob)
+        output = tf.reshape(output, [m * n, -1, num * num_conv])
+        print('[ensemble_reshaped_output]: {}'.format(output))
+        return tf.reduce_mean(output, 0), keep_prob
 
 
 def main(_):
@@ -165,8 +146,8 @@ def main(_):
         y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
     # The main model
-    e_size = 3
-    y_conv, keep_prob = scscn(x, 1, 10, e_size=e_size)
+    e_size = 1
+    y_conv, keep_prob = scscn(x, num=e_size, num_conv=10, e_size=e_size)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
