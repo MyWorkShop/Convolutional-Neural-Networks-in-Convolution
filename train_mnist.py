@@ -38,7 +38,7 @@ def small_cnn(x,
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
     with tf.variable_scope(name, reuse=reuse):
-
+        '''
         # [?,16,16,1]=>[?,12,12,32]
         x = tf.layers.conv2d(
             inputs=x,
@@ -63,6 +63,11 @@ def small_cnn(x,
         x = tf.reshape(x, [-1, 8 * 8 * 64])
 
         x = tf.layers.dense(x, 128, activation=tf.nn.relu)
+        '''
+        x = tf.reshape(x, [-1, 16 * 16])
+        x = tf.layers.dense(x, 1024, activation=tf.nn.relu)
+        x = tf.layers.dense(x, 512, activation=tf.nn.relu)
+
         x = tf.nn.dropout(x, keep_prob)
         x = tf.layers.dense(x, 10, activation=tf.nn.relu)
         pass
@@ -127,11 +132,23 @@ def scscn(x, num, num_conv, e_size=1):
                                              [-1, a, b, -1]))
     with tf.name_scope('scn_ensemble'):
         scn_input = slicing.concat()
+        print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
-        output = small_cnn(scn_input, num_conv, keep_prob)
-        output = tf.reshape(output, [m * n, -1, num * num_conv])
+
+        output1 = small_cnn(scn_input, num_conv, keep_prob, name='scn1')
+        output1 = tf.reshape(output1, [m * n, -1, num_conv])
+        output1 = tf.reduce_mean(output1, 0)
+
+        # '''
+        output2 = small_cnn(scn_input, num_conv, keep_prob, name='scn2')
+        output2 = tf.reshape(output2, [m * n, -1, num_conv])
+        output2 = tf.reduce_mean(output2, 0)
+        print('[ensemble_reshaped_output]: {}'.format([output1, output2]))
+        # '''
+
+        output = output1   + output2
         print('[ensemble_reshaped_output]: {}'.format(output))
-        return tf.reduce_mean(output, 0), keep_prob
+        return output, keep_prob
 
 
 def main(_):
@@ -146,8 +163,8 @@ def main(_):
         y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
     # The main model
-    e_size = 1
-    y_conv, keep_prob = scscn(x, num=e_size, num_conv=10, e_size=e_size)
+    e_size = 2
+    y_conv, keep_prob = scscn(x, num=1, num_conv=10, e_size=e_size)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
