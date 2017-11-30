@@ -38,13 +38,13 @@ def small_cnn(x,
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
     with tf.variable_scope(name, reuse=reuse):
-        '''
+        # '''
         # [?,16,16,1]=>[?,12,12,32]
         x = tf.layers.conv2d(
             inputs=x,
             filters=32,
             kernel_size=[5, 5],
-            padding="valid",
+            padding="same",
             activation=tf.nn.relu)
         print('[small_cnn] conv1 == {}'.format(x))
 
@@ -53,20 +53,27 @@ def small_cnn(x,
             inputs=x,
             filters=64,
             kernel_size=[5, 5],
-            padding="valid",
+            padding="same",
             activation=tf.nn.relu)
         print('[small_cnn] conv2 == {}'.format(x))
 
-        # x = tf.layers.average_pooling2d(x, pool_size=[2, 2], strides=[1, 1])
-        # print('[small_cnn] pool1  == {}'.format(x))
+        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
+        print('[small_cnn] pool1== {}'.format(x))
 
-        x = tf.reshape(x, [-1, 8 * 8 * 64])
+        x = tf.layers.conv2d(
+            inputs=x,
+            filters=64,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=tf.nn.relu)
+        print('[small_cnn] conv3 == {}'.format(x))
+
+        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
+        print('[small_cnn] pool2== {}'.format(x))
+
+        x = tf.reshape(x, [-1, 14 * 14 * 64])
 
         x = tf.layers.dense(x, 128, activation=tf.nn.relu)
-        '''
-        x = tf.reshape(x, [-1, 16 * 16])
-        x = tf.layers.dense(x, 1024, activation=tf.nn.relu)
-        x = tf.layers.dense(x, 512, activation=tf.nn.relu)
 
         x = tf.nn.dropout(x, keep_prob)
         x = tf.layers.dense(x, 10, activation=tf.nn.relu)
@@ -146,7 +153,7 @@ def scscn(x, num, num_conv, e_size=1):
         print('[ensemble_reshaped_output]: {}'.format([output1, output2]))
         # '''
 
-        output = output1   + output2
+        output = output1 + output2
         print('[ensemble_reshaped_output]: {}'.format(output))
         return output, keep_prob
 
@@ -163,7 +170,7 @@ def main(_):
         y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
     # The main model
-    e_size = 2
+    e_size = 1
     y_conv, keep_prob = scscn(x, num=1, num_conv=10, e_size=e_size)
 
     with tf.name_scope('loss'):
@@ -198,7 +205,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu_aug_conv1d' + str(e_size)
+        run_description = 'l2_lrelu_aug_conv' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -239,7 +246,7 @@ def main(_):
         # rt = 1e-2
         train_loss = 0
         for i in range(140001):
-            bs = 64
+            bs = 20
             # Get the data of next batch
             batch = mnist.train.next_batch(bs)
             if i % 1000 == 0:
@@ -255,21 +262,22 @@ def main(_):
                 train_accuracy = 0
                 validation_loss = 0
 
-                for index in range(50):
-                    vbs = 200
+                vbs = 50
+                itr = 200
+                for index in range(itr):
                     accuracy_batch = mnist.test.next_batch(vbs)
                     new_acc, v_loss = sess.run(
                         [accuracy, cross_entropy],
                         feed_dict={
                             x: accuracy_batch[0],
                             y_: accuracy_batch[1],
-                            keep_prob: 0.5,
+                            keep_prob: 1,
                         })
                     train_accuracy += new_acc
                     validation_loss += v_loss
 
-                train_accuracy /= 50
-                validation_loss /= 50
+                train_accuracy /= itr
+                validation_loss /= itr
                 overfit = (validation_loss / vbs - train_loss / bs) * 100
                 print(
                     'epoch: %g|acc: %g|time: %g|v_loss: %g|train_loss: %g|overfit: %g|lr: %g'
