@@ -16,13 +16,11 @@ import math
 FLAGS = None
 
 # TODO:
-# new activation fn
 
 # Small CNN:
 # convolution fliter of SCSCN
 
 
-# TODO: argument dismatch
 # num_conv=10,x=[?,16,16,1]
 def small_cnn(x,
               num_conv,
@@ -51,7 +49,7 @@ def small_cnn(x,
         # [?,12,12,32]=>[?,8,8,64]
         x = tf.layers.conv2d(
             inputs=x,
-            filters=64,
+            filters=48,
             kernel_size=[5, 5],
             padding="same",
             activation=tf.nn.relu)
@@ -62,7 +60,7 @@ def small_cnn(x,
 
         x = tf.layers.conv2d(
             inputs=x,
-            filters=64,
+            filters=48,
             kernel_size=[5, 5],
             padding="same",
             activation=tf.nn.relu)
@@ -71,11 +69,13 @@ def small_cnn(x,
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool2== {}'.format(x))
 
-        x = tf.reshape(x, [-1, 14 * 14 * 64])
+        x = tf.reshape(x, [-1, 14 * 14 * 48])
 
         x = tf.layers.dense(x, 128, activation=tf.nn.relu)
-
         x = tf.nn.dropout(x, keep_prob)
+        x = tf.layers.dense(x, 64, activation=tf.nn.relu)
+        x = tf.nn.dropout(x, keep_prob)
+
         x = tf.layers.dense(x, 10, activation=tf.nn.relu)
         pass
 
@@ -142,18 +142,20 @@ def scscn(x, num, num_conv, e_size=1):
         print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
 
-        output1 = small_cnn(scn_input, num_conv, keep_prob, name='scn1')
-        output1 = tf.reshape(output1, [m * n, -1, num_conv])
-        output1 = tf.reduce_mean(output1, 0)
+        output = small_cnn(scn_input, num_conv, keep_prob, name='scn1')
+        output = tf.reshape(output, [m * n, -1, num_conv])
+        output = tf.reduce_mean(output, 0)
+        print('[ensemble_reshaped_output]: {}'.format(output))
 
-        # '''
-        output2 = small_cnn(scn_input, num_conv, keep_prob, name='scn2')
-        output2 = tf.reshape(output2, [m * n, -1, num_conv])
-        output2 = tf.reduce_mean(output2, 0)
-        print('[ensemble_reshaped_output]: {}'.format([output1, output2]))
-        # '''
+        for es in range(e_size - 1):
+            o = small_cnn(
+                scn_input, num_conv, keep_prob, name='scn' + str(es + 2))
+            o = tf.reshape(o, [m * n, -1, num_conv])
+            o = tf.reduce_mean(o, 0)
+            outout += o
+            print('[ensemble_reshaped_output{}]: {}'.format(es + 2, output1))
+            pass
 
-        output = output1 + output2
         print('[ensemble_reshaped_output]: {}'.format(output))
         return output, keep_prob
 
@@ -205,7 +207,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu_aug_conv' + str(e_size)
+        run_description = 'l2_lrelu_aug_conv_altered2_dropout3' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -246,24 +248,27 @@ def main(_):
         # rt = 1e-2
         train_loss = 0
         for i in range(140001):
-            bs = 20
+            bs = 24
             # Get the data of next batch
             batch = mnist.train.next_batch(bs)
             if i % 1000 == 0:
-                rt = rt * 0.95
-                if i == 600000:
+                # rt = rt * 0.98
+                if i == 7000:
                     rt = 3e-4
                     print('new rt: {}'.format(rt))
-                if i == 1000000:
+                if i == 16000:
                     rt = 1e-4
+                    print('new rt: {}'.format(rt))
+                if i == 23000:
+                    rt = 3e-5
                     print('new rt: {}'.format(rt))
 
                 # Print the accuracy
                 train_accuracy = 0
                 validation_loss = 0
 
-                vbs = 50
-                itr = 200
+                vbs = 10
+                itr = 1000
                 for index in range(itr):
                     accuracy_batch = mnist.test.next_batch(vbs)
                     new_acc, v_loss = sess.run(
