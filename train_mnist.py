@@ -200,9 +200,9 @@ def main(_):
             batch = mnist.train.next_batch(100)
             if i % 600 == 0:
                 if i == 30000:
-                    rt = 3e-4
+                    rt = 1e-4
                 if i == 48000:
-                    rt = 9e-5
+                    rt = 1e-5
                 # Print the accuracy
                 test_accuracy = 0
                 test_loss = 0
@@ -217,8 +217,8 @@ def main(_):
                     test_loss += test_loss_once
                     test_accuracy_once = 0
                     test_loss_once = 0
-                print('%g, %g, %g, %g' %
-                    (i / 600, test_accuracy / 200, test_loss / 200 - train_loss / 600, (time.clock() - t0)))
+                print('%g, %g, %g, %g, %g' %
+                    (i / 600, test_accuracy / 200, train_loss / 600 - test_loss / 200, test_loss / 200, (time.clock() - t0)))
                 t0 = time.clock()
                 train_loss = 0
             # Train
@@ -228,7 +228,7 @@ def main(_):
                            keep_prob: 0.5,
                            rate: rt})
             train_loss += train_loss_once
-            train_loss = 0
+            train_loss_once = 0
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
