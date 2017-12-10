@@ -217,8 +217,7 @@ def main(_):
                     test_loss += test_loss_once
                     test_accuracy_once = 0
                     test_loss_once = 0
-                print(
-                    '%g, %g, %g, %g' %
+                print('%g, %g, %g, %g' %
                     (i / 600, test_accuracy / 200, test_loss / 200 - train_loss / 600, (time.clock() - t0)))
                 t0 = time.clock()
                 train_loss = 0
