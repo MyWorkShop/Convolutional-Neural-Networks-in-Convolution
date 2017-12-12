@@ -45,13 +45,13 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
             tf.reshape(h_pool2, [-1, 64 * 16]), keep_prob)
 
     with tf.variable_scope('fc1', reuse=False):
-        W_fc1 = weight_variable_([64 * 16, 384], id, 0, 0)
-        b_fc1 = bias_variable_([384], id, 0, 0)
+        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
+        b_fc1 = bias_variable_([1024], id, 0, 0)
         h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
     with tf.variable_scope('fc', reuse=reuse):
-        W_fc = weight_variable_([384, num_conv], id, 0, 0)
+        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
         b_fc = bias_variable_([num_conv], id, 0, 0)
         h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
 
@@ -200,9 +200,11 @@ def main(_):
             batch = mnist.train.next_batch(100)
             if i % 600 == 0:
                 if i == 30000:
-                    rt = 1e-4
-                if i == 48000:
-                    rt = 1e-5
+                    rt = 3e-4
+                if i == 42000:
+                    rt = 9e-5
+                if i == 54000:
+                    rt = 3e-5
                 # Print the accuracy
                 test_accuracy = 0
                 test_loss = 0
@@ -218,14 +220,14 @@ def main(_):
                     test_accuracy_once = 0
                     test_loss_once = 0
                 print('%g, %g, %g, %g, %g' %
-                    (i / 600, test_accuracy / 200, train_loss / 600 - test_loss / 200, test_loss / 200, (time.clock() - t0)))
+                    (i / 600, test_accuracy / 200, train_loss / 600 - test_loss / 100, test_loss / 100, (time.clock() - t0)))
                 t0 = time.clock()
                 train_loss = 0
             # Train
             _, train_loss_once = sess.run([train_step, cross_entropy],
                 feed_dict={x: batch[0],
                            y_: batch[1],
-                           keep_prob: 0.5,
+                           keep_prob: 0.425,
                            rate: rt})
             train_loss += train_loss_once
             train_loss_once = 0
