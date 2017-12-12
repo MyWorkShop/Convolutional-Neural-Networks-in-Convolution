@@ -40,23 +40,16 @@ def small_cnn(x,
         # [?,16,16,1]=>[?,12,12,32]
         x = tf.layers.conv2d(
             inputs=x,
-            filters=32,
-            kernel_size=[8, 8],
-            padding="same",
-            activation=tf.nn.relu)
-        print('[small_cnn] conv1 == {}'.format(x))
-
-        # [?,12,12,32]=>[?,8,8,64]
-        x = tf.layers.conv2d(
-            inputs=x,
             filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=tf.nn.relu)
-        print('[small_cnn] conv2 == {}'.format(x))
+        print('[small_cnn] conv1 == {}'.format(x))
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool1== {}'.format(x))
+
+        x = tf.nn.dropout(x, keep_prob)
 
         x = tf.layers.conv2d(
             inputs=x,
@@ -71,10 +64,10 @@ def small_cnn(x,
 
         x = tf.reshape(x, [-1, 14 * 14 * 64])
 
-        x = tf.layers.dense(x, 128, activation=tf.nn.relu)
+        x = tf.layers.dense(x, 384, activation=tf.nn.relu)
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 64, activation=tf.nn.relu)
-        x = tf.nn.dropout(x, keep_prob)
+        # x = tf.layers.dense(x, 64, activation=tf.nn.relu)
+        # x = tf.nn.dropout(x, keep_prob)
 
         x = tf.layers.dense(x, 10, activation=tf.nn.relu)
         pass
@@ -207,7 +200,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu_aug_conv8864_altered2_dp2_bs24' + str(e_size)
+        run_description = 'l2_lrelu_aug_conv_82_32_dp2_bs64' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -248,20 +241,16 @@ def main(_):
         # rt = 2e-3
         # rt = 1e-2
         train_loss = 0
-        for i in range(140001):
-            bs = 24
+        for i in range(60001):
+            bs = 32
             # Get the data of next batch
             batch = mnist.train.next_batch(bs)
             if i % 1000 == 0:
-                # rt = rt * 0.98
-                if i == 17000:
-                    rt = 3e-4
-                    print('new rt: {}'.format(rt))
-                if i == 27000:
+                if i == 30000:
                     rt = 1e-4
                     print('new rt: {}'.format(rt))
-                if i == 35000:
-                    rt = 3e-5
+                if i == 48000:
+                    rt = 1e-5
                     print('new rt: {}'.format(rt))
 
                 # Print the accuracy
@@ -285,15 +274,18 @@ def main(_):
                 validation_accuracy /= itr
                 validation_loss /= itr
                 overfit = (validation_loss / vbs - train_loss / bs) * 100
-                print(
+                print((
+                    '\x1b[6;30;42m' +
                     'epoch: %g|acc: %g|time: %g|v_loss: %g|train_loss: %g|overfit: %g|lr: %g'
-                    % (i, validation_accuracy, (time.clock() - t0), validation_loss,
-                       train_loss, overfit, rt))
+                    + '\x1b[0m') %
+                      (i, validation_accuracy, (time.clock() - t0),
+                       validation_loss, train_loss, overfit, rt))
                 t0 = time.clock()
 
                 # Log other
                 summary = tf.Summary()
-                summary.value.add(tag='acc_v', simple_value=validation_accuracy)
+                summary.value.add(
+                    tag='acc_v', simple_value=validation_accuracy)
                 summary.value.add(tag='v_loss', simple_value=validation_loss)
                 summary.value.add(tag='lr', simple_value=rt)
                 summary.value.add(tag='overfit', simple_value=overfit)
