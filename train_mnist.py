@@ -45,15 +45,17 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
             tf.reshape(h_pool2, [-1, 64 * 16]), keep_prob)
 
     with tf.variable_scope('fc1', reuse=False):
-        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
-        b_fc1 = bias_variable_([1024], id, 0, 0)
-        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        hfc1 = tf.layers.dense(x, 256, activation=tf.nn.relu)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-    with tf.variable_scope('fc', reuse=reuse):
-        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
-        b_fc = bias_variable_([num_conv], id, 0, 0)
-        h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+        pass
+    
+    with tf.variable_scope('fc2', reuse=False):
+        hfc2 = tf.layers.dense(h_fc1_drop, 128, activation=tf.nn.relu)
+        h_fc2_drop = tf.nn.dropout(h_fc1, keep_prob)
+        pass
+        
+    with tf.variable_scope('fc_out', reuse=reuse):
+        h_fc=tf.layers.dense(x, 10, activation=tf.nn.relu)
 
     return tf.nn.dropout(h_fc, keep_prob)
 
