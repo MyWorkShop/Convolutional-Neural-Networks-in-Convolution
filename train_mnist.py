@@ -49,8 +49,6 @@ def small_cnn(x,
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool1== {}'.format(x))
 
-        x = tf.nn.dropout(x, keep_prob)
-
         x = tf.layers.conv2d(
             inputs=x,
             filters=64,
@@ -64,12 +62,14 @@ def small_cnn(x,
 
         x = tf.reshape(x, [-1, 14 * 14 * 64])
 
-        x = tf.layers.dense(x, 384, activation=tf.nn.relu)
         x = tf.nn.dropout(x, keep_prob)
-        # x = tf.layers.dense(x, 64, activation=tf.nn.relu)
-        # x = tf.nn.dropout(x, keep_prob)
+        x = tf.layers.dense(x, 256, activation=tf.nn.relu)
+        x = tf.nn.dropout(x, keep_prob)
+        x = tf.layers.dense(x, 128, activation=tf.nn.relu)
+        x = tf.nn.dropout(x, keep_prob)
 
         x = tf.layers.dense(x, 10, activation=tf.nn.relu)
+        # x = tf.nn.dropout(x, keep_prob)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
@@ -200,7 +200,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu_aug_conv_82_32_dp2_bs64' + str(e_size)
+        run_description = 'l2_lrelu_aug_conv_82_32_dp3_bs64' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -242,17 +242,20 @@ def main(_):
         # rt = 1e-2
         train_loss = 0
         for i in range(60001):
-            bs = 32
+            bs = 48
             # Get the data of next batch
             batch = mnist.train.next_batch(bs)
-            if i % 1000 == 0:
+            if i % 600 == 0:
                 if i == 30000:
-                    rt = 1e-4
+                    rt = 3e-4
                     print('new rt: {}'.format(rt))
-                if i == 48000:
-                    rt = 1e-5
+                if i == 42000:
+                    rt = 9e-5
                     print('new rt: {}'.format(rt))
-
+                if i == 54000:
+                    rt = 3e-5
+                    print('new rt: {}'.format(rt))
+                
                 # Print the accuracy
                 validation_accuracy = 0
                 validation_loss = 0
