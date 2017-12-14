@@ -6,6 +6,8 @@ import argparse
 import sys
 import tempfile
 import time
+import numpy as np
+import random
 
 from tensorflow.examples.tutorials.mnist import input_data
 
@@ -14,6 +16,7 @@ import tensorflow as tf
 import math
 
 FLAGS = None
+random.seed(a=None)
 
 # TODO:
 
@@ -153,6 +156,30 @@ def scscn(x, num, num_conv, e_size=1):
         return output, keep_prob
 
 
+def add_salt_pepper_noise(X_imgs):
+    # Need to produce a copy as to not modify the original image
+    X_imgs_copy = X_imgs.copy()
+    row, col, _ = X_imgs_copy[0].shape
+    salt_vs_pepper = 0.2
+    amount = 0.004
+    num_salt = np.ceil(amount * X_imgs_copy[0].size * salt_vs_pepper)
+    num_pepper = np.ceil(amount * X_imgs_copy[0].size * (1.0 - salt_vs_pepper))
+
+    for X_img in X_imgs_copy:
+        # Add Salt noise
+        coords = [
+            np.random.randint(0, i - 1, int(num_salt)) for i in X_img.shape
+        ]
+        X_img[coords[0], coords[1], :] = 1
+
+        # Add Pepper noise
+        coords = [
+            np.random.randint(0, i - 1, int(num_pepper)) for i in X_img.shape
+        ]
+        X_img[coords[0], coords[1], :] = 0
+    return X_imgs_copy
+
+
 def main(_):
     # Read data from MNIST
     # mnist = input_data.read_data_sets('fashion', one_hot=True)
@@ -238,13 +265,16 @@ def main(_):
         t0 = time.clock()
 
         rt = 1e-3
-        # rt = 2e-3
-        # rt = 1e-2
+        aug = False
         train_loss = 0
         for i in range(60001):
             bs = 48
             # Get the data of next batch
             batch = mnist.train.next_batch(bs)
+            # Optional noise(1/2 chance if enabled)
+            if aug and bool(random.randint(0, 1)):
+                batch = add_salt_pepper_noise(batch)
+
             if i % 600 == 0:
                 if i == 30000:
                     rt = 3e-4
@@ -255,7 +285,7 @@ def main(_):
                 if i == 54000:
                     rt = 3e-5
                     print('new rt: {}'.format(rt))
-                
+
                 # Print the accuracy
                 validation_accuracy = 0
                 validation_loss = 0
