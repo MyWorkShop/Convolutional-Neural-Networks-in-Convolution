@@ -4,19 +4,26 @@ from __future__ import print_function
 
 import argparse
 import sys
+import os
 import tempfile
 import time
 import numpy as np
 import random
+import math
+import logging
 
 from tensorflow.examples.tutorials.mnist import input_data
 
 import tensorflow as tf
 
-import math
+from augmentation import *
 
 FLAGS = None
 random.seed(a=None)
+logging.getLogger("tensorflow").setLevel(logging.WARNING)
+tf.logging.set_verbosity(tf.logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
+
 
 # TODO:
 
@@ -156,12 +163,10 @@ def scscn(x, num, num_conv, e_size=1):
         return output, keep_prob
 
 
-def add_salt_pepper_noise(X_imgs):
+def add_salt_pepper_noise(X_imgs, amount=0.004, salt_vs_pepper=0.2):
     # Need to produce a copy as to not modify the original image
     X_imgs_copy = X_imgs.copy()
     row, col, _ = X_imgs_copy[0].shape
-    salt_vs_pepper = 0.2
-    amount = 0.004
     num_salt = np.ceil(amount * X_imgs_copy[0].size * salt_vs_pepper)
     num_pepper = np.ceil(amount * X_imgs_copy[0].size * (1.0 - salt_vs_pepper))
 
@@ -227,7 +232,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'l2_lrelu_aug_conv_82_32_dp3_bs64' + str(e_size)
+        run_description = 'fc1_32_fc512_dp2_bs64_salt' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -265,15 +270,24 @@ def main(_):
         t0 = time.clock()
 
         rt = 1e-3
-        aug = False
+        aug = True
         train_loss = 0
         for i in range(60001):
             bs = 48
             # Get the data of next batch
             batch = mnist.train.next_batch(bs)
             # Optional noise(1/2 chance if enabled)
+            batch_x = None
             if aug and bool(random.randint(0, 1)):
-                batch = add_salt_pepper_noise(batch)
+                with tf.Session() as s:
+                    batch_x = tf.image.random_contrast(
+                        tf.reshape(batch[0], [bs, 28, 28]), 1, 3)
+                    batch_x = tf.reshape(batch_x, [bs, 28 * 28])
+                    batch_x=s.run(batch_x)
+                    # print("[aug] {} augmented!")
+                pass
+            else:
+                batch_x = batch[0]
 
             if i % 600 == 0:
                 if i == 30000:
@@ -344,7 +358,7 @@ def main(_):
             _, train_loss = sess.run(
                 [train_step, cross_entropy],
                 feed_dict={
-                    x: batch[0],
+                    x: batch_x,
                     y_: batch[1],
                     keep_prob: 0.5,
                     rate: rt
