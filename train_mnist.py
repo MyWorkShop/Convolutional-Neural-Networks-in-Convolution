@@ -44,6 +44,9 @@ def small_cnn(x,
     lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
+    swish = lambda x: x * tf.nn.sigmoid(x)
+    activation = swish  # Activation Func
+
     with tf.variable_scope(name, reuse=reuse):
         # '''
         # [?,16,16,1]=>[?,12,12,32]
@@ -52,7 +55,7 @@ def small_cnn(x,
             filters=64,
             kernel_size=[5, 5],
             padding="same",
-            activation=tf.nn.relu)
+            activation=activation)
         print('[small_cnn] conv1 == {}'.format(x))
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
@@ -63,7 +66,7 @@ def small_cnn(x,
             filters=64,
             kernel_size=[5, 5],
             padding="same",
-            activation=tf.nn.relu)
+            activation=activation)
         print('[small_cnn] conv3 == {}'.format(x))
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
@@ -72,12 +75,14 @@ def small_cnn(x,
         x = tf.reshape(x, [-1, 14 * 14 * 64])
 
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 384, activation=tf.nn.relu)
+        x = tf.layers.dense(x, 256, activation=activation)
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 182, activation=tf.nn.relu)
+        x = tf.layers.dense(x, 256, activation=activation)
+        x = tf.nn.dropout(x, keep_prob)
+        x = tf.layers.dense(x, 64, activation=activation)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = tf.layers.dense(x, 10, activation=tf.nn.relu)
+        x = tf.layers.dense(x, 10, activation=activation)
         # x = tf.nn.dropout(x, keep_prob)
         pass
 
