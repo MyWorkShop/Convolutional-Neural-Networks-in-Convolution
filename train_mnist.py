@@ -24,7 +24,6 @@ logging.getLogger("tensorflow").setLevel(logging.WARNING)
 tf.logging.set_verbosity(tf.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 
-
 # TODO:
 
 # Small CNN:
@@ -73,9 +72,9 @@ def small_cnn(x,
         x = tf.reshape(x, [-1, 14 * 14 * 64])
 
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 256, activation=tf.nn.relu)
+        x = tf.layers.dense(x, 384, activation=tf.nn.relu)
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 128, activation=tf.nn.relu)
+        x = tf.layers.dense(x, 182, activation=tf.nn.relu)
         x = tf.nn.dropout(x, keep_prob)
 
         x = tf.layers.dense(x, 10, activation=tf.nn.relu)
@@ -232,7 +231,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'fc1_32_fc512_dp2_bs64_salt' + str(e_size)
+        run_description = 'fc1_32_fc384_184_dp3_0.6_bs64_salt' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -268,26 +267,28 @@ def main(_):
             print('[saver] Failed to load parameter: {}'.format(e))
 
         t0 = time.clock()
-
         rt = 1e-3
-        aug = True
+        aug = False
         train_loss = 0
+        bs = 48
+        # Image augmentation
+        dgen = tf.contrib.keras.preprocessing.image.ImageDataGenerator(
+            rotation_range=30,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            rescale=None,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=False,
+            fill_mode='nearest')
         for i in range(60001):
-            bs = 48
+
             # Get the data of next batch
             batch = mnist.train.next_batch(bs)
             # Optional noise(1/2 chance if enabled)
-            batch_x = None
             if aug and bool(random.randint(0, 1)):
-                with tf.Session() as s:
-                    batch_x = tf.image.random_contrast(
-                        tf.reshape(batch[0], [bs, 28, 28]), 1, 3)
-                    batch_x = tf.reshape(batch_x, [bs, 28 * 28])
-                    batch_x=s.run(batch_x)
-                    # print("[aug] {} augmented!")
+                batch = dgen.flow(batch, batch_size=bs)
                 pass
-            else:
-                batch_x = batch[0]
 
             if i % 600 == 0:
                 if i == 30000:
@@ -358,9 +359,9 @@ def main(_):
             _, train_loss = sess.run(
                 [train_step, cross_entropy],
                 feed_dict={
-                    x: batch_x,
+                    x: batch[0],
                     y_: batch[1],
-                    keep_prob: 0.5,
+                    keep_prob: 0.6,
                     rate: rt
                 })
     #"""
