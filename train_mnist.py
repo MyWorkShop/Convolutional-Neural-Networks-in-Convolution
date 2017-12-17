@@ -44,8 +44,8 @@ def small_cnn(x,
     lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
-    swish = lambda x: x * tf.nn.sigmoid(x)
-    activation = swish  # Activation Func
+    swish = lambda x: (x * tf.nn.sigmoid(x))
+    activation = swish # Activation Func
 
     with tf.variable_scope(name, reuse=reuse):
         # '''
@@ -77,13 +77,10 @@ def small_cnn(x,
         x = tf.nn.dropout(x, keep_prob)
         x = tf.layers.dense(x, 256, activation=activation)
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 256, activation=activation)
-        x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 64, activation=activation)
+        x = tf.layers.dense(x, 128, activation=activation)
         x = tf.nn.dropout(x, keep_prob)
 
         x = tf.layers.dense(x, 10, activation=activation)
-        # x = tf.nn.dropout(x, keep_prob)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
@@ -165,28 +162,6 @@ def scscn(x, num, num_conv, e_size=1):
 
         print('[ensemble_reshaped_output]: {}'.format(output))
         return output, keep_prob
-
-
-def add_salt_pepper_noise(X_imgs, amount=0.004, salt_vs_pepper=0.2):
-    # Need to produce a copy as to not modify the original image
-    X_imgs_copy = X_imgs.copy()
-    row, col, _ = X_imgs_copy[0].shape
-    num_salt = np.ceil(amount * X_imgs_copy[0].size * salt_vs_pepper)
-    num_pepper = np.ceil(amount * X_imgs_copy[0].size * (1.0 - salt_vs_pepper))
-
-    for X_img in X_imgs_copy:
-        # Add Salt noise
-        coords = [
-            np.random.randint(0, i - 1, int(num_salt)) for i in X_img.shape
-        ]
-        X_img[coords[0], coords[1], :] = 1
-
-        # Add Pepper noise
-        coords = [
-            np.random.randint(0, i - 1, int(num_pepper)) for i in X_img.shape
-        ]
-        X_img[coords[0], coords[1], :] = 0
-    return X_imgs_copy
 
 
 def main(_):
