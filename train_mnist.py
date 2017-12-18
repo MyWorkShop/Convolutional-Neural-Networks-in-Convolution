@@ -18,6 +18,12 @@ FLAGS = None
 
 
 def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
+    lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
+    relu = lambda x: tf.nn.relu(x)
+    elu = lambda x: tf.nn.elu(x)
+    swish = lambda x: (x * tf.nn.sigmoid(x))
+    activation = swish  # Activation Func to use
+
     with tf.variable_scope('conv1', reuse=reuse):
         W_conv1 = weight_variable_(
             [5,
@@ -26,18 +32,18 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
              64],
             id, 0, 0)
         b_conv1 = bias_variable_([64], id, 0, 0)
-        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
+        h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
 
     # with tf.variable_scope('conv2', reuse=reuse):
     #     W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
     #     b_conv2 = bias_variable_([64], id, 0, 0)
-    #     h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+    #     h_conv2 = activation(conv2d(h_conv1, W_conv2) + b_conv2)
         h_pool1 = tf.nn.dropout(avg_pool(h_conv1, 2, 2), keep_prob)
 
     with tf.variable_scope('conv3', reuse=reuse):
         W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
         b_conv3 = bias_variable_([64], id, 0, 0)
-        h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
+        h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
 
     with tf.variable_scope('pool2'):
         h_pool2 = avg_pool(h_conv3, 2, 2)
@@ -45,17 +51,17 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
             tf.reshape(h_pool2, [-1, 64 * 16]), keep_prob)
 
     with tf.variable_scope('fc1', reuse=False):
-        hfc1 = tf.layers.dense(x, 256, activation=tf.nn.relu)
+        hfc1 = tf.layers.dense(x, 256, activation=activation)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
         pass
     
     with tf.variable_scope('fc2', reuse=False):
-        hfc2 = tf.layers.dense(h_fc1_drop, 128, activation=tf.nn.relu)
+        hfc2 = tf.layers.dense(h_fc1_drop, 128, activation=activation)
         h_fc2_drop = tf.nn.dropout(h_fc1, keep_prob)
         pass
         
     with tf.variable_scope('fc_out', reuse=reuse):
-        h_fc=tf.layers.dense(x, 10, activation=tf.nn.relu)
+        h_fc=tf.layers.dense(x, 10, activation=activation)
 
     return tf.nn.dropout(h_fc, keep_prob)
 
@@ -77,6 +83,38 @@ def max_pool(x, m, n):
     return tf.nn.max_pool(x, ksize=[1, m, n, 1],
                           strides=[1, m, n, 1], padding='SAME')
 
+def batch_norm(x, phase_train, n_out=1):
+    """
+    Batch normalization on convolutional maps.
+    Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
+    Args:
+        x:           Tensor, 4D BHWD input maps
+        n_out:       integer, depth of input maps
+        phase_train: boolean tf.Varialbe, true indicates training phase
+        scope:       string, variable scope
+    Return:
+        normed:      batch-normalized maps
+    """
+    with tf.variable_scope('bn'):
+        beta = tf.Variable(
+            tf.constant(0.0, shape=[n_out]), name='beta', trainable=True)
+        gamma = tf.Variable(
+            tf.constant(1.0, shape=[n_out]), name='gamma', trainable=True)
+        batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2], name='moments')
+        ema = tf.train.ExponentialMovingAverage(decay=0.5)
+
+        def mean_var_with_update():
+            ema_apply_op = ema.apply([batch_mean, batch_var])
+            with tf.control_dependencies([ema_apply_op]):
+                return tf.identity(batch_mean), tf.identity(batch_var)
+
+        mean, var = tf.cond(
+            phase_train, mean_var_with_update,
+            lambda: (ema.average(batch_mean), ema.average(batch_var)))
+        normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
+    return normed
+
+
 
 def scscn(x, num, num_conv):
     with tf.name_scope('kernal_size'):
@@ -93,6 +131,9 @@ def scscn(x, num, num_conv):
         padd = 0
         x = tf.reshape(x, [-1, 28, 28, 1])
         x = tf.pad(x, [[0, 0], [padd, padd], [padd, padd], [0, 0]])
+        
+    with tf.name_scope('batch_normalization'):
+        x = batch_norm(x, phase_train)
 
     with tf.name_scope('input_size'):
         # Size of input:
