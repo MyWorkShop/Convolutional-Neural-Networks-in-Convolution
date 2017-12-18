@@ -45,7 +45,7 @@ def small_cnn(x,
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
     swish = lambda x: (x * tf.nn.sigmoid(x))
-    activation = swish # Activation Func
+    activation = swish  # Activation Func
 
     with tf.variable_scope(name, reuse=reuse):
         # '''
@@ -90,6 +90,7 @@ def small_cnn(x,
 # x=>[bs,784]
 # num=>num of output channels
 def scscn(x, num, num_conv, e_size=1):
+    phase_train = tf.placeholder(dtype=tf.bool)
     with tf.name_scope('kernal_size'):
         # Kernal size:
         a = 16
@@ -105,6 +106,9 @@ def scscn(x, num, num_conv, e_size=1):
         x = tf.reshape(x, [-1, 28, 28, 1])
         x = tf.pad(x, [[0, 0], [padd, padd], [padd, padd], [0, 0]])
         print('SCSCN Input after padding: {}'.format(x.get_shape()))
+
+    with tf.name_scope('batch_normalization'):
+        x = batch_norm(x, phase_train)
 
     with tf.name_scope('input_size'):
         # Size of input:
@@ -161,7 +165,39 @@ def scscn(x, num, num_conv, e_size=1):
             pass
 
         print('[ensemble_reshaped_output]: {}'.format(output))
-        return output, keep_prob
+        return output, keep_prob, phase_train
+
+
+def batch_norm(x, phase_train, n_out=1):
+    """
+    Batch normalization on convolutional maps.
+    Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
+    Args:
+        x:           Tensor, 4D BHWD input maps
+        n_out:       integer, depth of input maps
+        phase_train: boolean tf.Varialbe, true indicates training phase
+        scope:       string, variable scope
+    Return:
+        normed:      batch-normalized maps
+    """
+    with tf.variable_scope('bn'):
+        beta = tf.Variable(
+            tf.constant(0.0, shape=[n_out]), name='beta', trainable=True)
+        gamma = tf.Variable(
+            tf.constant(1.0, shape=[n_out]), name='gamma', trainable=True)
+        batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2], name='moments')
+        ema = tf.train.ExponentialMovingAverage(decay=0.5)
+
+        def mean_var_with_update():
+            ema_apply_op = ema.apply([batch_mean, batch_var])
+            with tf.control_dependencies([ema_apply_op]):
+                return tf.identity(batch_mean), tf.identity(batch_var)
+
+        mean, var = tf.cond(
+            phase_train, mean_var_with_update,
+            lambda: (ema.average(batch_mean), ema.average(batch_var)))
+        normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
+    return normed
 
 
 def main(_):
@@ -177,7 +213,8 @@ def main(_):
 
     # The main model
     e_size = 1
-    y_conv, keep_prob = scscn(x, num=1, num_conv=10, e_size=e_size)
+    y_conv, keep_prob, phase_train = scscn(
+        x, num=1, num_conv=10, e_size=e_size)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
@@ -211,7 +248,7 @@ def main(_):
 
     with tf.name_scope('logger'):
         # Graph
-        run_description = 'fc1_32_fc384_184_dp3_0.6_bs64_salt' + str(e_size)
+        run_description = 'bn_swish_fc1_32_fc256_128_dp3_0.5_bs48' + str(e_size)
         import time
 
         graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -295,6 +332,7 @@ def main(_):
                             x: accuracy_batch[0],
                             y_: accuracy_batch[1],
                             keep_prob: 1,
+                            phase_train: False
                         })
                     validation_accuracy += new_acc
                     validation_loss += v_loss
@@ -320,11 +358,13 @@ def main(_):
                 writer.add_summary(summary, i)
 
                 # Log loss
-                summary = summary_op.eval(feed_dict={
-                    x: accuracy_batch[0],
-                    y_: accuracy_batch[1],
-                    keep_prob: 1.0
-                })
+                summary = summary_op.eval(
+                    feed_dict={
+                        x: accuracy_batch[0],
+                        y_: accuracy_batch[1],
+                        keep_prob: 1.0,
+                        phase_train: False
+                    })
                 writer.add_summary(summary, i)
                 # Save parameters
                 if (i % 5000 == 0):
@@ -341,8 +381,9 @@ def main(_):
                 feed_dict={
                     x: batch[0],
                     y_: batch[1],
-                    keep_prob: 0.6,
-                    rate: rt
+                    keep_prob: 0.5,
+                    rate: rt,
+                    phase_train: False
                 })
     #"""
 
