@@ -23,16 +23,16 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
             [5,
              5,
              x.get_shape().as_list()[3],
-             64],
+             32],
             id, 0, 0)
-        b_conv1 = bias_variable_([64], id, 0, 0)
+        b_conv1 = bias_variable_([32], id, 0, 0)
         h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
-    # with tf.variable_scope('conv2', reuse=reuse):
-    #     W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
-    #     b_conv2 = bias_variable_([64], id, 0, 0)
-    #     h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        h_pool1 = tf.nn.dropout(avg_pool(h_conv1, 2, 2), keep_prob)
+    with tf.variable_scope('conv2', reuse=reuse):
+        W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
+        b_conv2 = bias_variable_([64], id, 0, 0)
+        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+        h_pool1 = avg_pool(tf.nn.dropout(h_conv2, keep_prob), 2, 2)
 
     with tf.variable_scope('conv3', reuse=reuse):
         W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
@@ -40,9 +40,8 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
         h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
 
     with tf.variable_scope('pool2'):
-        h_pool2 = avg_pool(h_conv3, 2, 2)
-        h_pool2_flat = tf.nn.dropout(
-            tf.reshape(h_pool2, [-1, 64 * 16]), keep_prob)
+        h_pool2 = avg_pool(tf.nn.dropout(h_conv3, keep_prob), 2, 2)
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
     with tf.variable_scope('fc1', reuse=False):
         W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
@@ -220,15 +219,15 @@ def main(_):
                     test_accuracy_once = 0
                     test_loss_once = 0
                 print('%g, %g, %g, %g, %g' %
-                    (i / 600, test_accuracy / 200, train_loss / 600 - test_loss / 100, test_loss / 100, (time.clock() - t0)))
+                      (i / 600, test_accuracy / 200, rt, test_loss / 200, (time.clock() - t0)))
                 t0 = time.clock()
                 train_loss = 0
             # Train
             _, train_loss_once = sess.run([train_step, cross_entropy],
-                feed_dict={x: batch[0],
-                           y_: batch[1],
-                           keep_prob: 0.425,
-                           rate: rt})
+                                          feed_dict={x: batch[0],
+                                                     y_: batch[1],
+                                                     keep_prob: 0.625,
+                                                     rate: rt})
             train_loss += train_loss_once
             train_loss_once = 0
 
