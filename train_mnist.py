@@ -23,24 +23,25 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
             [5,
              5,
              x.get_shape().as_list()[3],
-             32],
+             16],
             id, 0, 0)
-        b_conv1 = bias_variable_([32], id, 0, 0)
-        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
+        b_conv1 = bias_variable_([16], id, 0, 0)
+        h_conv1 = tf.nn.dropout(
+            tf.nn.relu(conv2d(x, W_conv1) + b_conv1), tf.sqrt(keep_prob))
 
     with tf.variable_scope('conv2', reuse=reuse):
-        W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
-        b_conv2 = bias_variable_([64], id, 0, 0)
+        W_conv2 = weight_variable_([5, 5, 16, 32], id, 0, 0)
+        b_conv2 = bias_variable_([32], id, 0, 0)
         h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        h_pool1 = avg_pool(tf.nn.dropout(h_conv2, keep_prob), 2, 2)
+        h_pool1 = avg_pool(tf.nn.dropout(h_conv2, tf.sqrt(keep_prob)), 2, 2)
 
     with tf.variable_scope('conv3', reuse=reuse):
-        W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
+        W_conv3 = weight_variable_([5, 5, 32, 64], id, 0, 0)
         b_conv3 = bias_variable_([64], id, 0, 0)
         h_conv3 = tf.nn.relu(conv2d(h_pool1, W_conv3) + b_conv3)
 
     with tf.variable_scope('pool2'):
-        h_pool2 = avg_pool(tf.nn.dropout(h_conv3, keep_prob), 2, 2)
+        h_pool2 = avg_pool(tf.nn.dropout(h_conv3, tf.sqrt(keep_prob)), 2, 2)
         h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
     with tf.variable_scope('fc1', reuse=False):
@@ -226,7 +227,7 @@ def main(_):
             _, train_loss_once = sess.run([train_step, cross_entropy],
                                           feed_dict={x: batch[0],
                                                      y_: batch[1],
-                                                     keep_prob: 0.625,
+                                                     keep_prob: 0.5,
                                                      rate: rt})
             train_loss += train_loss_once
             train_loss_once = 0
