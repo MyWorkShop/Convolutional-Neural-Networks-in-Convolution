@@ -7,6 +7,7 @@ import numpy as np
 import random
 import math
 import logging
+import math
 
 from tensorflow.examples.tutorials.mnist import input_data
 
@@ -61,10 +62,10 @@ def small_cnn(x,
         x = tf.nn.dropout(x, keep_prob)
         x = dense(x, 256, 1, activation=activation, use_lsuv=True)
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 128, 2, activation=activation,use_lsuv=True)
+        x = dense(x, 128, 2, activation=activation, use_lsuv=True)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 10, 3, activation=activation,use_lsuv=True)
+        x = dense(x, 10, 3, activation=activation, use_lsuv=True)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
@@ -91,7 +92,8 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('SCSCN Input after padding: {}'.format(x.get_shape()))
 
     with tf.name_scope('batch_normalization'):
-        x = batch_norm(x, phase_train)
+        # x = batch_norm(x, phase_train)
+        pass
 
     with tf.name_scope('input_size'):
         # Size of input:
@@ -165,7 +167,7 @@ def lsuv(layer, w):
     print('[LSUV]: Treating weight {} at {}'.format(layer, w))
     batch = mnist.test.next_batch(bs)
     new_weight = svd_orthonormal(w.get_shape())
-    w.assign(w)
+    w.assign(new_weight)
     with tf.Session(config=sess_config) as sess:
         sess.run(tf.global_variables_initializer())
         # global tol,t_max
@@ -175,24 +177,30 @@ def lsuv(layer, w):
                 x: batch[0],
                 y_: batch[1],
                 keep_prob: 1,
-                phase_train: False
+                phase_train: True
             })
 
-        t = 0
-        while (np.abs(np.var(blob)) > tol and t < t_max):
-            old_weight = w.eval()
+    t = 0
+    var = np.var(blob)
+    while (np.abs(var - 1) > tol and t < t_max):
+        print('[LSUV]: Variance larger than tolerance: {} > {}'.format(
+            np.abs(var-1), tol))
+        old_weight = new_weight
+        with tf.Session(config=sess_config) as sess:
+            sess.run(tf.global_variables_initializer())
             blob = sess.run(
                 layer,
                 feed_dict={
                     x: batch[0],
                     y_: batch[1],
                     keep_prob: 1,
-                    phase_train: False
+                    phase_train: True
                 })
-            t += 1
-            new_weight = old_weight / np.sqrt(np.var(blob))
-            w.assign(w)
-            pass
+        t += 1
+        var = np.var(blob)
+        new_weight = old_weight / (var**0.5)
+        print('Old: {}\nNew: {}'.format(old_weight, new_weight))
+        w.assign(new_weight)
         pass
     print('[LSUV]: {} in {} treated over {} iterations'.format(w, layer, t))
     return layer
