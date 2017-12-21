@@ -28,12 +28,10 @@ from configs import *
 
 def main(_):
     global mnist
-    global scnscn
 
     #"""
     # Start to run
     with tf.Session(config=sess_config) as sess:
-
         sess.run(tf.global_variables_initializer())
         try:
             import os
@@ -69,7 +67,7 @@ def main(_):
                 pass
 
             global rt
-            if i % 900 == 0:
+            if i % 600 == 0:
                 # rt *= 0.993
                 # '''
                 if i == 30000:

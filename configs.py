@@ -41,3 +41,6 @@ with tf.name_scope('config'):
 rt = 1e-3
 aug = False
 bs = 48
+
+tol=0.01
+t_max=10

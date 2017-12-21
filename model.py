@@ -14,7 +14,6 @@ import tensorflow as tf
 from configs import *
 
 
-
 # num_conv=10,x=[?,16,16,1]
 def small_cnn(x,
               num_conv,
@@ -62,10 +61,10 @@ def small_cnn(x,
         x = tf.nn.dropout(x, keep_prob)
         x = dense(x, 256, 1, activation=activation, use_lsuv=True)
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 128, 2, activation=activation)
+        x = dense(x, 128, 2, activation=activation,use_lsuv=True)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 10, 3, activation=activation)
+        x = dense(x, 10, 3, activation=activation,use_lsuv=True)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
@@ -74,8 +73,7 @@ def small_cnn(x,
 
 # x=>[bs,784]
 # num=>num of output channels
-def scscn(x, num, num_conv, e_size=1):
-    phase_train = tf.placeholder(dtype=tf.bool)
+def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
     with tf.name_scope('kernal_size'):
         # Kernal size:
         a = 16
@@ -114,8 +112,7 @@ def scscn(x, num, num_conv, e_size=1):
         # a TensorArray of tensor used to storage the output of small_cnn
         slicing = tf.TensorArray('float32', num * m * n)
 
-    with tf.name_scope('dropout'):
-        keep_prob = tf.placeholder(tf.float32)
+    # with tf.name_scope('dropout'):
 
     with tf.name_scope('fliter'):
         for h in range(num * m * n):
@@ -150,7 +147,7 @@ def scscn(x, num, num_conv, e_size=1):
             pass
 
         print('[ensemble_reshaped_output]: {}'.format(output))
-        return output, keep_prob, phase_train
+        return output, phase_train
 
 
 def svd_orthonormal(shape):
@@ -166,11 +163,38 @@ def svd_orthonormal(shape):
 
 def lsuv(layer, w):
     print('[LSUV]: Treating weight {} at {}'.format(layer, w))
+    batch = mnist.test.next_batch(bs)
     new_weight = svd_orthonormal(w.get_shape())
     w.assign(w)
     with tf.Session(config=sess_config) as sess:
-        old_weight = sess.run(layer, feed_dict={})
+        sess.run(tf.global_variables_initializer())
+        # global tol,t_max
+        blob = sess.run(
+            layer,
+            feed_dict={
+                x: batch[0],
+                y_: batch[1],
+                keep_prob: 1,
+                phase_train: False
+            })
+
+        t = 0
+        while (np.abs(np.var(blob)) > tol and t < t_max):
+            old_weight = w.eval()
+            blob = sess.run(
+                layer,
+                feed_dict={
+                    x: batch[0],
+                    y_: batch[1],
+                    keep_prob: 1,
+                    phase_train: False
+                })
+            t += 1
+            new_weight = old_weight / np.sqrt(np.var(blob))
+            w.assign(w)
+            pass
         pass
+    print('[LSUV]: {} in {} treated over {} iterations'.format(w, layer, t))
     return layer
 
 
@@ -232,15 +256,24 @@ def batch_norm(x, phase_train, n_out=1):
         normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
     return normed
 
+
 # Placehoder of input and output
 with tf.name_scope('input'):
     x = tf.placeholder(tf.float32, [None, 784], name='input')
 
     y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
+    # Necessary to be kept visible
+    keep_prob = tf.placeholder(tf.float32)
+    phase_train = tf.placeholder(dtype=tf.bool)
     # The main model
-    y_conv, keep_prob, phase_train = scscn(
-        x, num=1, num_conv=10, e_size=e_size)
+    y_conv, phase_train = scscn(
+        x,
+        num=1,
+        num_conv=10,
+        e_size=e_size,
+        keep_prob=keep_prob,
+        phase_train=phase_train)
 
 with tf.name_scope('loss'):
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
