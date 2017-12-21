@@ -13,9 +13,9 @@ from tensorflow.examples.tutorials.mnist import input_data
 import tensorflow as tf
 from configs import *
 
+
+
 # num_conv=10,x=[?,16,16,1]
-
-
 def small_cnn(x,
               num_conv,
               keep_prob,
@@ -60,12 +60,12 @@ def small_cnn(x,
         x = tf.reshape(x, [-1, 14 * 14 * 64])
 
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 256, activation=activation)
+        x = dense(x, 256, 1, activation=activation, use_lsuv=True)
         x = tf.nn.dropout(x, keep_prob)
-        x = tf.layers.dense(x, 128, activation=activation)
+        x = dense(x, 128, 2, activation=activation)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = tf.layers.dense(x, 10, activation=activation)
+        x = dense(x, 10, 3, activation=activation)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
@@ -153,6 +153,54 @@ def scscn(x, num, num_conv, e_size=1):
         return output, keep_prob, phase_train
 
 
+def svd_orthonormal(shape):
+    if len(shape) < 2:  # pragma: no cover
+        raise RuntimeError("Only shapes of length 2 or more are supported.")
+    flat_shape = (shape[0], np.prod(shape[1:]))
+    a = np.random.standard_normal(flat_shape)
+    u, _, v = np.linalg.svd(a, full_matrices=False)
+    q = u if u.shape == flat_shape else v
+    q = q.reshape(shape)
+    return q
+
+
+def lsuv(layer, w):
+    print('[LSUV]: Treating weight {} at {}'.format(layer, w))
+    new_weight = svd_orthonormal(w.get_shape())
+    w.assign(w)
+    with tf.Session(config=sess_config) as sess:
+        old_weight = sess.run(layer, feed_dict={})
+        pass
+    return layer
+
+
+def weight_variable_(shape, id, j, k):
+    return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
+                           shape, None, tf.random_normal_initializer(0, 0.1))
+
+
+def bias_variable_(shape, id, j, k):
+    return tf.get_variable("biases" + str(id) + "a" + str(j) + "a" + str(k),
+                           shape, None, tf.constant_initializer(0))
+
+
+def dense(x,
+          num,
+          scope_name,
+          id=0,
+          use_lsuv=False,
+          activation=tf.nn.relu,
+          reuse=False):
+    with tf.variable_scope('fc' + str(scope_name), reuse=reuse):
+        w = weight_variable_([x.get_shape()[1], num], id, 0, 0)
+        b = bias_variable_([num], id, 0, 0)
+        x = activation(tf.matmul(x, w) + b)
+        if not use_lsuv:
+            return x
+        else:
+            return lsuv(x, w)
+
+
 def batch_norm(x, phase_train, n_out=1):
     """
     Batch normalization on convolutional maps.
@@ -183,3 +231,48 @@ def batch_norm(x, phase_train, n_out=1):
             lambda: (ema.average(batch_mean), ema.average(batch_var)))
         normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
     return normed
+
+# Placehoder of input and output
+with tf.name_scope('input'):
+    x = tf.placeholder(tf.float32, [None, 784], name='input')
+
+    y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
+
+    # The main model
+    y_conv, keep_prob, phase_train = scscn(
+        x, num=1, num_conv=10, e_size=e_size)
+
+with tf.name_scope('loss'):
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+        labels=y_, logits=y_conv)
+
+    reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+
+    cross_entropy = tf.reduce_mean(
+        cross_entropy)  #+ tf.reduce_mean(reg_losses)
+
+with tf.name_scope('adam_optimizer'):
+    rate = tf.placeholder(tf.float32)
+    train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
+#"""
+with tf.name_scope('momentum_optimizer'):  #this works really bad...
+    train_step_mmntm = tf.train.MomentumOptimizer(
+        rate, momentum=0.9).minimize(cross_entropy)
+#"""
+
+with tf.name_scope('accuracy'):
+    print('[y_conv]: {}'.format(y_conv))
+    correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
+    correct_prediction = tf.cast(correct_prediction, tf.float32)
+    accuracy = tf.reduce_mean(correct_prediction)
+
+with tf.name_scope('logger'):
+    # Graph
+    print('Saving graph to: %s' % graph_location)
+    writer = tf.summary.FileWriter(
+        graph_location, graph=tf.get_default_graph())
+    saver = tf.train.Saver()
+    # Loss
+    tf.summary.scalar("t_loss", cross_entropy)
+    tf.summary.scalar("t_acc", accuracy)
+    summary_op = tf.summary.merge_all()

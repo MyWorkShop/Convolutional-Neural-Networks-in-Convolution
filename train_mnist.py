@@ -27,64 +27,12 @@ from configs import *
 
 
 def main(_):
-    # Read data from MNIST
-    # mnist = input_data.read_data_sets('fashion', one_hot=True)
-    mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
-
-    # Placehoder of input and output
-    with tf.name_scope('input'):
-        x = tf.placeholder(tf.float32, [None, 784], name='input')
-
-        y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
-
-    # The main model
-    y_conv, keep_prob, phase_train = scscn(
-        x, num=1, num_conv=10, e_size=e_size)
-
-    with tf.name_scope('loss'):
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
-            labels=y_, logits=y_conv)
-
-        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-
-        cross_entropy = tf.reduce_mean(
-            cross_entropy)  #+ tf.reduce_mean(reg_losses)
-
-    with tf.name_scope('adam_optimizer'):
-        rate = tf.placeholder(tf.float32)
-        train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)
-    #"""
-    with tf.name_scope('momentum_optimizer'):  #this works really bad...
-        train_step_mmntm = tf.train.MomentumOptimizer(
-            rate, momentum=0.9).minimize(cross_entropy)
-    #"""
-
-    with tf.name_scope('accuracy'):
-        print('[y_conv]: {}'.format(y_conv))
-        correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
-        correct_prediction = tf.cast(correct_prediction, tf.float32)
-        accuracy = tf.reduce_mean(correct_prediction)
-
-    with tf.name_scope('config'):
-        config = tf.ConfigProto(
-            inter_op_parallelism_threads=256, intra_op_parallelism_threads=64)
-        config.gpu_options.allow_growth = True
-        config.gpu_options.per_process_gpu_memory_fraction = 0.4
-
-    with tf.name_scope('logger'):
-        # Graph
-        print('Saving graph to: %s' % graph_location)
-        writer = tf.summary.FileWriter(
-            graph_location, graph=tf.get_default_graph())
-        saver = tf.train.Saver()
-        # Loss
-        tf.summary.scalar("t_loss", cross_entropy)
-        tf.summary.scalar("t_acc", accuracy)
-        summary_op = tf.summary.merge_all()
+    global mnist
+    global scnscn
 
     #"""
     # Start to run
-    with tf.Session(config=config) as sess:
+    with tf.Session(config=sess_config) as sess:
 
         sess.run(tf.global_variables_initializer())
         try:
