@@ -38,9 +38,11 @@ with tf.name_scope('config'):
     # config.gpu_options.per_process_gpu_memory_fraction = 0.4
     sess_config = config
 
+# Training Setting
 rt = 1e-3
 aug = False
 bs = 48
 
+# LSUV Setting
 tol=0.1
 t_max=20

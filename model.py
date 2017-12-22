@@ -30,29 +30,32 @@ def small_cnn(x,
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
     swish = lambda x: (x * tf.nn.sigmoid(x))
-    activation = swish  # Activation Func to use
+    activation = relu  # Activation Func to use
 
     with tf.variable_scope(name, reuse=reuse):
         # '''
         # [?,16,16,1]=>[?,12,12,32]
-        x = tf.layers.conv2d(
+        x = conv2d(
             inputs=x,
             filters=64,
             kernel_size=[5, 5],
             padding="same",
-            activation=activation)
+            activation=activation,
+            scope_name=1,
+            use_lsuv=True)
         print('[small_cnn] conv1 == {}'.format(x))
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool1== {}'.format(x))
 
-        x = tf.layers.conv2d(
+        x = conv2d(
             inputs=x,
             filters=64,
             kernel_size=[5, 5],
             padding="same",
-            activation=activation)
-        print('[small_cnn] conv3 == {}'.format(x))
+            activation=activation,
+            scope_name=2)
+        print('[small_cnn] conv2 == {}'.format(x))
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool2== {}'.format(x))
@@ -184,7 +187,7 @@ def lsuv(layer, w):
     var = np.var(blob)
     while (np.abs(var - 1) > tol and t < t_max):
         print('[LSUV]: Variance larger than tolerance: {} > {}'.format(
-            np.abs(var-1), tol))
+            np.abs(var - 1), tol))
         old_weight = new_weight
         with tf.Session(config=sess_config) as sess:
             sess.run(tf.global_variables_initializer())
@@ -207,6 +210,7 @@ def lsuv(layer, w):
 
 
 def weight_variable_(shape, id, j, k):
+    print("weights" + str(id) + "a" + str(j) + "a" + str(k))
     return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
                            shape, None, tf.random_normal_initializer(0, 0.1))
 
@@ -214,6 +218,33 @@ def weight_variable_(shape, id, j, k):
 def bias_variable_(shape, id, j, k):
     return tf.get_variable("biases" + str(id) + "a" + str(j) + "a" + str(k),
                            shape, None, tf.constant_initializer(0))
+
+
+def conv2d(inputs,
+           filters,
+           kernel_size,
+           scope_name=None,
+           padding='SAME',
+           activation=tf.nn.relu,
+           strides=[1, 1, 1, 1],
+           id=0,
+           use_lsuv=False,
+           reuse=False):
+    x = inputs
+    scope_name = 'conv' + str(scope_name)
+    padding = padding.upper()
+
+    with tf.variable_scope(scope_name, reuse=reuse):
+        w = weight_variable_(
+            [kernel_size[0], kernel_size[1],
+             x.get_shape()[3], filters], id, 0, 0)
+        b = bias_variable_([filters], id, 0, 0)
+        x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
+        x = activation(x)
+        if not use_lsuv:
+            return x
+        else:
+            return lsuv(x, w)
 
 
 def dense(x,

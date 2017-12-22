@@ -28,7 +28,6 @@ from configs import *
 
 def main(_):
     global mnist
-
     #"""
     # Start to run
     with tf.Session(config=sess_config) as sess:
