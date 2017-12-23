@@ -29,16 +29,16 @@ def small_cnn(x, num_conv, phase_train, id=0, j=0, k=0, reuse=False):
             [5,
              5,
              x.get_shape().as_list()[3],
-             64],
+             32],
             id, 0, 0)
-        b_conv1 = bias_variable_([64], id, 0, 0)
+        b_conv1 = bias_variable_([32], id, 0, 0)
         h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
 
-    # with tf.variable_scope('conv2', reuse=reuse):
-    #     W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
-    #     b_conv2 = bias_variable_([64], id, 0, 0)
-    #     h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        h_pool1 = batch_norm(tf.nn.dropout(avg_pool(h_conv1, 2, 2, 2, 2), keep_prob), phase_train)
+    with tf.variable_scope('conv2', reuse=reuse):
+        W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
+        b_conv2 = bias_variable_([64], id, 0, 0)
+        h_conv2 = activation(conv2d(h_conv1, W_conv2) + b_conv2)
+        h_pool1 = batch_norm(avg_pool(h_conv2, 2, 2, 2, 2), phase_train)
 
     with tf.variable_scope('conv3', reuse=reuse):
         W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
@@ -46,22 +46,28 @@ def small_cnn(x, num_conv, phase_train, id=0, j=0, k=0, reuse=False):
         h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
 
     with tf.variable_scope('pool2'):
-        h_pool2 = batch_norm(tf.nn.dropout(avg_pool(h_conv3, 2, 2, 2, 2), keep_prob), phase_train)
+        h_pool2 = batch_norm(avg_pool(h_conv3, 2, 2, 2, 2), phase_train)
         h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
     with tf.variable_scope('fc1', reuse=False):
-        W_fc1 = weight_variable_([64 * 16, 1024], id, 0, 0)
-        b_fc1 = bias_variable_([1024], id, 0, 0)
+        W_fc1 = weight_variable_([64 * 16, 384], id, 0, 0)
+        b_fc1 = bias_variable_([384], id, 0, 0)
         h_fc1 = activation(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-        n_conv1 = tf.reduce_sum(tf.reduce_mean(h_fc1, 0))
+        n_conv1 = tf.reduce_mean(h_fc1)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    with tf.variable_scope('fc', reuse=reuse):
-        W_fc = weight_variable_([1024, num_conv], id, 0, 0)
-        b_fc = bias_variable_([num_conv], id, 0, 0)
-        h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
+    with tf.variable_scope('fc2', reuse=False):
+        W_fc2 = weight_variable_([384, 128], id, 0, 0)
+        b_fc2 = bias_variable_([128], id, 0, 0)
+        h_fc2 = activation(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+        h_fc2_drop = tf.nn.dropout(h_fc2, keep_prob)
 
-    return tf.nn.dropout(h_fc, keep_prob), n_conv1
+    with tf.variable_scope('fc', reuse=reuse):
+        W_fc = weight_variable_([128, num_conv], id, 0, 0)
+        b_fc = bias_variable_([num_conv], id, 0, 0)
+        h_fc = tf.matmul(h_fc2_drop, W_fc) + b_fc
+
+    return h_fc, n_conv1
 
 
 def conv2d(x, W):
@@ -232,15 +238,15 @@ def main(_):
         t0 = time.clock()
         rt = 1e-3
         train_loss = 0
-        for i in range(60001):
+        for i in range(72001):
             # Get the data of next batch
             batch = mnist.train.next_batch(100)
             if i % 600 == 0:
                 if i == 30000:
                     rt = 3e-4
-                if i == 42000:
+                if i == 48000:
                     rt = 9e-5
-                if i == 54000:
+                if i == 60000:
                     rt = 3e-5
                 # Print the accuracy
                 test_accuracy = 0
