@@ -19,6 +19,7 @@ from configs import *
 def small_cnn(x,
               num_conv,
               keep_prob,
+              phase_train,
               id=0,
               j=0,
               k=0,
@@ -34,7 +35,6 @@ def small_cnn(x,
 
     with tf.variable_scope(name, reuse=reuse):
         # '''
-        # [?,16,16,1]=>[?,12,12,32]
         x = conv2d(
             inputs=x,
             filters=64,
@@ -42,11 +42,13 @@ def small_cnn(x,
             padding="same",
             activation=activation,
             scope_name=1,
-            use_lsuv=True)
+            use_lsuv=use_lsuv)
         print('[small_cnn] conv1 == {}'.format(x))
+        x = batch_norm(x, phase_train)
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool1== {}'.format(x))
+        x = batch_norm(x, phase_train)
 
         x = conv2d(
             inputs=x,
@@ -54,8 +56,10 @@ def small_cnn(x,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
-            scope_name=2)
+            scope_name=2,
+            use_lsuv=use_lsuv)
         print('[small_cnn] conv2 == {}'.format(x))
+        x = batch_norm(x, phase_train)
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool2== {}'.format(x))
@@ -63,12 +67,14 @@ def small_cnn(x,
         x = tf.reshape(x, [-1, 14 * 14 * 64])
 
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 256, 1, activation=activation, use_lsuv=True)
+        x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
+        x = batch_norm_1d(x, phase_train)
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 128, 2, activation=activation, use_lsuv=True)
+        x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
+        x = batch_norm_1d(x, phase_train)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 10, 3, activation=activation, use_lsuv=True)
+        x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
@@ -95,7 +101,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('SCSCN Input after padding: {}'.format(x.get_shape()))
 
     with tf.name_scope('batch_normalization'):
-        # x = batch_norm(x, phase_train)
+        x = batch_norm(x, phase_train)
         pass
 
     with tf.name_scope('input_size'):
@@ -137,14 +143,19 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
 
-        output = small_cnn(scn_input, num_conv, keep_prob, name='scn1')
+        output = small_cnn(
+            scn_input, num_conv, keep_prob, phase_train, name='scn1')
         output = tf.reshape(output, [m * n, -1, num_conv])
         output = tf.reduce_mean(output, 0)
         print('[ensemble_reshaped_output]: {}'.format(output))
 
         for es in range(e_size - 1):
             o = small_cnn(
-                scn_input, num_conv, keep_prob, name='scn' + str(es + 2))
+                scn_input,
+                num_conv,
+                keep_prob,
+                phase_train,
+                name='scn' + str(es + 2))
             o = tf.reshape(o, [m * n, -1, num_conv])
             o = tf.reduce_mean(o, 0)
             outout += o
@@ -180,7 +191,7 @@ def lsuv(layer, w):
                 x: batch[0],
                 y_: batch[1],
                 keep_prob: 1,
-                phase_train: True
+                phase_train: False
             })
 
     t = 0
@@ -197,12 +208,12 @@ def lsuv(layer, w):
                     x: batch[0],
                     y_: batch[1],
                     keep_prob: 1,
-                    phase_train: True
+                    phase_train: False
                 })
         t += 1
         var = np.var(blob)
         new_weight = old_weight / (var**0.5)
-        print('Old: {}\nNew: {}'.format(old_weight, new_weight))
+        # print('Old: {}\nNew: {}'.format(old_weight, new_weight))
         w.assign(new_weight)
         pass
     print('[LSUV]: {} in {} treated over {} iterations'.format(w, layer, t))
@@ -262,6 +273,16 @@ def dense(x,
             return x
         else:
             return lsuv(x, w)
+
+
+def batch_norm_1d(x, phase_train):
+    shape = x.get_shape()
+    x = tf.reshape(x, [-1, shape[1], 1, 1])
+    print('[BN_1d] Convert x from {} to {}'.format(shape, x.get_shape()))
+    x = batch_norm(x, phase_train)
+    print('[BN_1d] Convert x back.')
+    x = tf.reshape(x, [-1, shape[1]])
+    return x
 
 
 def batch_norm(x, phase_train, n_out=1):

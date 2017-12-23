@@ -23,12 +23,19 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 # mnist = input_data.read_data_sets('fashion', one_hot=True)
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
+dry_run = True
+
 e_size = 1  # Ensemble size
 run_description = 'bn_swish_fc1_32_fc256_128_dp3_0.5_bs48_lr_e3normal' + str(
     e_size)
 graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
 save_location = '/tmp/saved_models/' + run_description + '/saved'
 recover_location = '/tmp/saved_models/' + run_description + '/'
+if dry_run:
+    run_description = 'Dry_'+run_description
+    graph_location = '/tmp/saved_models/' + run_description  + str(time.time())
+    save_location = '/tmp/saved_models/' + run_description + '/saved'
+    recover_location = '/tmp/saved_models/' + run_description + '/'
 
 with tf.name_scope('config'):
     config = tf.ConfigProto(
@@ -44,5 +51,6 @@ aug = False
 bs = 48
 
 # LSUV Setting
-tol=0.1
-t_max=20
+use_lsuv=False
+tol = 0.1
+t_max = 20
