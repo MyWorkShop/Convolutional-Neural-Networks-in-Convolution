@@ -12,6 +12,7 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.training import moving_averages
 
 import tensorflow as tf
+import numpy as np
 
 FLAGS = None
 
@@ -19,7 +20,8 @@ FLAGS = None
 # convolution fliter of SCSCN
 
 
-def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
+def small_cnn(x, num_conv, phase_train, id=0, j=0, k=0, reuse=False):
+    keep_prob = tf.cond(phase_train, lambda: 0.5, lambda: 1.0)
     swish = lambda x: (x * tf.nn.sigmoid(x))
     activation = swish  # Activation Func to use
     with tf.variable_scope('conv1', reuse=reuse):
@@ -36,7 +38,7 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
     #     W_conv2 = weight_variable_([5, 5, 32, 64], id, 0, 0)
     #     b_conv2 = bias_variable_([64], id, 0, 0)
     #     h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        h_pool1 = tf.nn.dropout(avg_pool(h_conv1, 2, 2, 2, 2), keep_prob)
+        h_pool1 = batch_norm(tf.nn.dropout(avg_pool(h_conv1, 2, 2, 2, 2), keep_prob), phase_train)
 
     with tf.variable_scope('conv3', reuse=reuse):
         W_conv3 = weight_variable_([5, 5, 64, 64], id, 0, 0)
@@ -44,7 +46,7 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
         h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
 
     with tf.variable_scope('pool2'):
-        h_pool2 = tf.nn.dropout(avg_pool(h_conv3, 2, 2, 2, 2), keep_prob)
+        h_pool2 = batch_norm(tf.nn.dropout(avg_pool(h_conv3, 2, 2, 2, 2), keep_prob), phase_train)
         h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
     with tf.variable_scope('fc1', reuse=False):
@@ -79,8 +81,41 @@ def max_pool(x, m, n):
     return tf.nn.max_pool(x, ksize=[1, m, n, 1],
                           strides=[1, m, n, 1], padding='SAME')
 
+def batch_norm(x, phase_train, n_out=1):
+    """
+    Batch normalization on convolutional maps.
+    Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
+    Args:
+        x:           Tensor, 4D BHWD input maps
+        n_out:       integer, depth of input maps
+        phase_train: boolean tf.Varialbe, true indicates training phase
+        scope:       string, variable scope
+    Return:
+        normed:      batch-normalized maps
+    """
+    with tf.variable_scope('batch_normalization'):
+        beta = tf.Variable(
+            tf.constant(0.0, shape=[n_out]), name='beta', trainable=True)
+        gamma = tf.Variable(
+            tf.constant(1.0, shape=[n_out]), name='gamma', trainable=True)
+        batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2], name='moments')
+        ema = tf.train.ExponentialMovingAverage(decay=0.5)
+
+        def mean_var_with_update():
+            ema_apply_op = ema.apply([batch_mean, batch_var])
+            with tf.control_dependencies([ema_apply_op]):
+                return tf.identity(batch_mean), tf.identity(batch_var)
+
+        mean, var = tf.cond(
+            phase_train, mean_var_with_update,
+            lambda: (ema.average(batch_mean), ema.average(batch_var)))
+        normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
+    return normed
 
 def scscn(x, num, num_conv):
+    with tf.name_scope('phase_train'):
+        phase_train = tf.placeholder(tf.bool)
+
     with tf.name_scope('kernal_size'):
         # Kernal size:
         a = 16
@@ -90,11 +125,12 @@ def scscn(x, num, num_conv):
         # Strides:
         stride = 3
 
-    with tf.name_scope('pad'):
+    with tf.name_scope('input'):
         # pad of input
         padd = 0
         x = tf.reshape(x, [-1, 28, 28, 1])
         x = tf.pad(x, [[0, 0], [padd, padd], [padd, padd], [0, 0]])
+        x = batch_norm(x, phase_train)
 
     with tf.name_scope('input_size'):
         # Size of input:
@@ -113,9 +149,6 @@ def scscn(x, num, num_conv):
         # a TensorArray of tensor used to storage the output of small_cnn
         slicing = tf.TensorArray('float32', num * m * n)
 
-    with tf.name_scope('dropout'):
-        keep_prob = tf.placeholder(tf.float32)
-
     with tf.name_scope('fliter'):
         for h in range(num * m * n):
             i = int(h / (m * n))
@@ -128,11 +161,11 @@ def scscn(x, num, num_conv):
         scn_input = slicing.concat()
         slicing.close().mark_used()
     with tf.name_scope('samll_cnn'):
-        scn, norm_conv1 = small_cnn(scn_input, num_conv, keep_prob)
+        scn, norm_conv1 = small_cnn(scn_input, num_conv, phase_train)
     with tf.name_scope('output'):
         output = tf.reduce_mean(tf.reshape(scn, [m * n, -1, num_conv]), 0)
 
-    return output, keep_prob, norm_conv1
+    return output, phase_train, norm_conv1
 
 
 def weight_variable(shape):
@@ -166,7 +199,7 @@ def main(_):
     y_ = tf.placeholder(tf.float32, [None, 10])
 
     # The main model
-    y_conv, keep_prob, norm_conv1 = scscn(x, 1, 10)
+    y_conv, phase_train, norm_conv1 = scscn(x, 1, 10)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_,
@@ -220,7 +253,7 @@ def main(_):
                     accuracy_batch = mnist.test.next_batch(50)
                     test_accuracy_once, test_loss_once, test_norm_once = sess.run([accuracy, cross_entropy, norm_conv1], feed_dict={
                         x: accuracy_batch[0],
-                            y_: accuracy_batch[1], keep_prob: 1.0})
+                            y_: accuracy_batch[1], phase_train: False})
                     test_accuracy += test_accuracy_once
                     test_loss += test_loss_once
                     test_norm += test_norm_once
@@ -235,25 +268,10 @@ def main(_):
             _, train_loss_once = sess.run([train_step, cross_entropy],
                                           feed_dict={x: batch[0],
                                                      y_: batch[1],
-                                                     keep_prob: 0.5,
+                                                     phase_train: True,
                                                      rate: rt})
             train_loss += train_loss_once
             train_loss_once = 0
-        test_accuracy = 0
-        test_loss = 0
-        test_accuracy_once = 0
-        test_loss_once = 0
-        for index in range(2000):
-            accuracy_batch = mnist.test.next_batch(50)
-            test_accuracy_once, test_loss_once = sess.run([accuracy, cross_entropy], feed_dict={
-                x: accuracy_batch[0],
-                       y_: accuracy_batch[1], keep_prob: 0.875})
-            test_accuracy += test_accuracy_once
-            test_loss += test_loss_once
-            test_accuracy_once = 0
-            test_loss_once = 0
-        print('%g, %g' %
-              (test_accuracy / 2000, test_loss / 2000))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
