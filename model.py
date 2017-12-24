@@ -59,7 +59,6 @@ def small_cnn(x,
             scope_name=2,
             use_lsuv=use_lsuv)
         print('[small_cnn] conv2 == {}'.format(x))
-        x = batch_norm(x, phase_train)
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool2== {}'.format(x))
@@ -68,10 +67,8 @@ def small_cnn(x,
 
         x = tf.nn.dropout(x, keep_prob)
         x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
-        x = batch_norm_1d(x, phase_train)
         x = tf.nn.dropout(x, keep_prob)
         x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
-        x = batch_norm_1d(x, phase_train)
         x = tf.nn.dropout(x, keep_prob)
 
         x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
@@ -274,15 +271,6 @@ def dense(x,
         else:
             return lsuv(x, w)
 
-
-def batch_norm_1d(x, phase_train):
-    shape = x.get_shape()
-    x = tf.reshape(x, [-1, shape[1], 1, 1])
-    print('[BN_1d] Convert x from {} to {}'.format(shape, x.get_shape()))
-    x = batch_norm(x, phase_train)
-    print('[BN_1d] Convert x back.')
-    x = tf.reshape(x, [-1, shape[1]])
-    return x
 
 
 def batch_norm(x, phase_train, n_out=1):
