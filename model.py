@@ -44,11 +44,9 @@ def small_cnn(x,
             scope_name=1,
             use_lsuv=use_lsuv)
         print('[small_cnn] conv1 == {}'.format(x))
-        x = batch_norm(x, phase_train)
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool1== {}'.format(x))
-        x = batch_norm(x, phase_train)
 
         x = conv2d(
             inputs=x,
@@ -177,13 +175,13 @@ def svd_orthonormal(shape):
 def lsuv(layer, w):
     print('[LSUV]: Treating weight {} at {}'.format(layer, w))
     batch = mnist.test.next_batch(bs)
-    new_weight = svd_orthonormal(w.get_shape())
-    w.assign(new_weight)
+    # new_weight = svd_orthonormal(w.get_shape())
+    # w.assign(new_weight)
     with tf.Session(config=sess_config) as sess:
         sess.run(tf.global_variables_initializer())
         # global tol,t_max
-        blob = sess.run(
-            layer,
+        blob, new_weight = sess.run(
+            [layer, w],
             feed_dict={
                 x: batch[0],
                 y_: batch[1],
@@ -217,15 +215,19 @@ def lsuv(layer, w):
     return layer
 
 
-def weight_variable_(shape, id, j, k):
+def weight_variable_(shape,
+                     id,
+                     j,
+                     k,
+                     initializer=tf.random_normal_initializer(0, 0.1)):
     print("weights" + str(id) + "a" + str(j) + "a" + str(k))
     return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
-                           shape, None, tf.random_normal_initializer(0, 0.1))
+                           shape, None, initializer)
 
 
-def bias_variable_(shape, id, j, k):
+def bias_variable_(shape, id, j, k, initializer=tf.constant_initializer(0)):
     return tf.get_variable("biases" + str(id) + "a" + str(j) + "a" + str(k),
-                           shape, None, tf.constant_initializer(0))
+                           shape, None, initializer)
 
 
 def conv2d(inputs,
@@ -243,15 +245,25 @@ def conv2d(inputs,
     padding = padding.upper()
 
     with tf.variable_scope(scope_name, reuse=reuse):
-        w = weight_variable_(
-            [kernel_size[0], kernel_size[1],
-             x.get_shape()[3], filters], id, 0, 0)
-        b = bias_variable_([filters], id, 0, 0)
-        x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
-        x = activation(x)
         if not use_lsuv:
+            w = weight_variable_(
+                [kernel_size[0], kernel_size[1],
+                 x.get_shape()[3], filters], id, 0, 0)
+            b = bias_variable_([filters], id, 0, 0)
+            x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
+            x = activation(x)
             return x
         else:
+            w = weight_variable_(
+                [kernel_size[0], kernel_size[1],
+                 x.get_shape()[3], filters],
+                id,
+                0,
+                0,
+                initializer=tf.initializers.orthogonal())
+            b = bias_variable_([filters], id, 0, 0)
+            x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
+            x = activation(x)
             return lsuv(x, w)
 
 
@@ -270,7 +282,6 @@ def dense(x,
             return x
         else:
             return lsuv(x, w)
-
 
 
 def batch_norm(x, phase_train, n_out=1):
@@ -302,7 +313,10 @@ def batch_norm(x, phase_train, n_out=1):
             phase_train, mean_var_with_update,
             lambda: (ema.average(batch_mean), ema.average(batch_var)))
         normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
-    return normed
+    if use_bn:
+        return normed
+    else:
+        return x
 
 
 # Placehoder of input and output

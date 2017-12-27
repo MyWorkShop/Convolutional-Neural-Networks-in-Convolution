@@ -49,8 +49,9 @@ with tf.name_scope('config'):
 rt = 1e-3
 aug = False
 bs = 48
+use_bn=False
 
 # LSUV Setting
-use_lsuv=False
-tol = 0.1
-t_max = 20
+use_lsuv=True
+tol = 0.2
+t_max = 30
