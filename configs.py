@@ -23,17 +23,27 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 # mnist = input_data.read_data_sets('fashion', one_hot=True)
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
+# Training Setting
+rt = 1e-3
+aug = False
+bs = 48
+use_bn = True
+
+# LSUV Setting
+use_lsuv = False
+tol = 0.2
+t_max = 30
 dry_run = True
 
 e_size = 1  # Ensemble size
-run_description = 'bn_swish_fc1_32_fc256_128_dp3_0.5_bs48_lr_e3normal' + str(
-    e_size)
+run_description = 'bn_swish_conv2_fc256_128_dp3_0.5_bs' + str(
+    bs) + '_lr_' + str(rt) + 'normal' + str(e_size)
 graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
 save_location = '/tmp/saved_models/' + run_description + '/saved'
 recover_location = '/tmp/saved_models/' + run_description + '/'
 if dry_run:
-    run_description = 'Dry_'+run_description
-    graph_location = '/tmp/saved_models/' + run_description  + str(time.time())
+    run_description = 'Dry_' + run_description
+    graph_location = '/tmp/saved_models/' + run_description + str(time.time())
     save_location = '/tmp/saved_models/' + run_description + '/saved'
     recover_location = '/tmp/saved_models/' + run_description + '/'
 
@@ -44,14 +54,3 @@ with tf.name_scope('config'):
     config.gpu_options.allow_growth = True
     # config.gpu_options.per_process_gpu_memory_fraction = 0.4
     sess_config = config
-
-# Training Setting
-rt = 1e-3
-aug = False
-bs = 48
-use_bn=False
-
-# LSUV Setting
-use_lsuv=True
-tol = 0.2
-t_max = 30

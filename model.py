@@ -31,7 +31,7 @@ def small_cnn(x,
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
     swish = lambda x: (x * tf.nn.sigmoid(x))
-    activation = relu  # Activation Func to use
+    activation = swish  # Activation Func to use
 
     with tf.variable_scope(name, reuse=reuse):
         # '''
@@ -138,24 +138,27 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
 
-        output = small_cnn(
-            scn_input, num_conv, keep_prob, phase_train, name='scn1')
-        output = tf.reshape(output, [m * n, -1, num_conv])
-        output = tf.reduce_mean(output, 0)
-        print('[ensemble_reshaped_output]: {}'.format(output))
+        with tf.variable_scope('scn1'):
+            output = small_cnn(
+                scn_input, num_conv, keep_prob, phase_train, name='scn1')
+            output = tf.reshape(output, [m * n, -1, num_conv])
+            output = tf.reduce_mean(output, 0)
+            print('[ensemble_reshaped_output]: {}'.format(output))
 
         for es in range(e_size - 1):
-            o = small_cnn(
-                scn_input,
-                num_conv,
-                keep_prob,
-                phase_train,
-                name='scn' + str(es + 2))
-            o = tf.reshape(o, [m * n, -1, num_conv])
-            o = tf.reduce_mean(o, 0)
-            outout += o
-            print('[ensemble_reshaped_output{}]: {}'.format(es + 2, output1))
-            pass
+            with tf.variable_scope('scn' + str(es + 2)):
+                o = small_cnn(
+                    scn_input,
+                    num_conv,
+                    keep_prob,
+                    phase_train,
+                    name='scn' + str(es + 2))
+                o = tf.reshape(o, [m * n, -1, num_conv])
+                o = tf.reduce_mean(o, 0)
+                output += o
+                print('[ensemble_reshaped_output{}]: {}'.format(
+                    es + 2, output))
+                pass
 
         print('[ensemble_reshaped_output]: {}'.format(output))
         return output, phase_train
