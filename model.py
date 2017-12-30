@@ -54,10 +54,9 @@ def small_cnn(x,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
-            scope_name=2,
+            scope_name=4,
             use_lsuv=use_lsuv)
-        print('[small_cnn] conv2 == {}'.format(x))
-
+        print('[small_cnn] conv1 == {}'.format(x))
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
         print('[small_cnn] pool2== {}'.format(x))
 
