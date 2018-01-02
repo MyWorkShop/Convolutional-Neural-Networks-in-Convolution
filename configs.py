@@ -27,7 +27,7 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 rt = 1e-3
 aug = False
 bs = 48
-use_bn = True
+use_bn = False
 
 # LSUV Setting
 use_lsuv = False

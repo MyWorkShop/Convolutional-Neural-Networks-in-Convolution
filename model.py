@@ -31,7 +31,7 @@ def small_cnn(x,
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
     swish = lambda x: (x * tf.nn.sigmoid(x))
-    activation = swish  # Activation Func to use
+    activation = relu  # Activation Func to use
 
     with tf.variable_scope(name, reuse=reuse):
         # '''
@@ -43,10 +43,19 @@ def small_cnn(x,
             activation=activation,
             scope_name=1,
             use_lsuv=use_lsuv)
-        print('[small_cnn] conv1 == {}'.format(x))
 
-        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
-        print('[small_cnn] pool1== {}'.format(x))
+        x = conv2d(
+            inputs=x,
+            filters=64,
+            kernel_size=[2, 2],
+            padding="valid",
+            activation=activation,
+            scope_name=5,
+            use_lsuv=use_lsuv,
+            strides=[2, 2])
+
+        # x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
+        # print('[small_cnn] pool1== {}'.format(x))
 
         x = conv2d(
             inputs=x,
@@ -54,13 +63,22 @@ def small_cnn(x,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
-            scope_name=4,
+            scope_name=2,
             use_lsuv=use_lsuv)
-        print('[small_cnn] conv1 == {}'.format(x))
-        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
-        print('[small_cnn] pool2== {}'.format(x))
 
-        x = tf.reshape(x, [-1, 14 * 14 * 64])
+        # x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
+        # print('[small_cnn] pool2== {}'.format(x))
+        x = conv2d(
+            inputs=x,
+            filters=64,
+            kernel_size=[2, 2],
+            padding="valid",
+            activation=activation,
+            scope_name=6,
+            use_lsuv=use_lsuv,
+            strides=[2, 2])
+
+        x = tf.reshape(x, [-1, 4 * 4 * 64])
 
         x = tf.nn.dropout(x, keep_prob)
         x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
@@ -238,11 +256,13 @@ def conv2d(inputs,
            scope_name=None,
            padding='SAME',
            activation=tf.nn.relu,
-           strides=[1, 1, 1, 1],
+           strides=[1, 1],
            id=0,
            use_lsuv=False,
+           use_bn=use_bn,
            reuse=False):
     x = inputs
+    strides = [1, strides[0], strides[1], 1]
     scope_name = 'conv' + str(scope_name)
     padding = padding.upper()
 
@@ -253,8 +273,9 @@ def conv2d(inputs,
                  x.get_shape()[3], filters], id, 0, 0)
             b = bias_variable_([filters], id, 0, 0)
             x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
+            if use_bn:
+                x = batch_norm(x, phase_train, n_out=x.get_shape()[3])
             x = activation(x)
-            return x
         else:
             w = weight_variable_(
                 [kernel_size[0], kernel_size[1],
@@ -266,7 +287,9 @@ def conv2d(inputs,
             b = bias_variable_([filters], id, 0, 0)
             x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
             x = activation(x)
-            return lsuv(x, w)
+            x = lsuv(x, w)
+        print('[small_cnn] conv' + scope_name + ' == {}'.format(x))
+        return x
 
 
 def dense(x,
@@ -329,6 +352,7 @@ with tf.name_scope('input'):
 
     # Necessary to be kept visible
     keep_prob = tf.placeholder(tf.float32)
+    global phase_train
     phase_train = tf.placeholder(dtype=tf.bool)
     # The main model
     y_conv, phase_train = scscn(
