@@ -128,6 +128,18 @@ def main(_):
                         phase_train: False
                     })
                 writer.add_summary(summary, i)
+
+                # Log weight
+                for summary in values_to_log:
+                    summary = summary.eval(
+                        feed_dict={
+                            x: accuracy_batch[0],
+                            y_: accuracy_batch[1],
+                            keep_prob: 1.0,
+                            phase_train: False
+                        })
+                    writer.add_summary(summary, i)
+
                 # Save parameters
                 if (i % 5000 == 0):
                     real_location = saver.save(

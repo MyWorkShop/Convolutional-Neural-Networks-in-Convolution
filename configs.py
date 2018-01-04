@@ -27,7 +27,7 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 rt = 1e-3
 aug = False
 bs = 48
-use_bn = False
+use_bn = True
 
 # LSUV Setting
 use_lsuv = False
@@ -46,6 +46,7 @@ if dry_run:
     graph_location = '/tmp/saved_models/' + run_description + str(time.time())
     save_location = '/tmp/saved_models/' + run_description + '/saved'
     recover_location = '/tmp/saved_models/' + run_description + '/'
+values_to_log = []
 
 with tf.name_scope('config'):
     config = tf.ConfigProto(

@@ -34,51 +34,34 @@ def small_cnn(x,
     activation = relu  # Activation Func to use
 
     with tf.variable_scope(name, reuse=reuse):
-        # '''
         x = conv2d(
             inputs=x,
             filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
+            strides=[1, 1],
             scope_name=1,
             use_lsuv=use_lsuv)
 
+        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
+        print('[small_cnn] pool1== {}'.format(x))
+
         x = conv2d(
             inputs=x,
             filters=64,
             kernel_size=[2, 2],
-            padding="valid",
-            activation=activation,
-            scope_name=5,
-            use_lsuv=use_lsuv,
-            strides=[2, 2])
-
-        # x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
-        # print('[small_cnn] pool1== {}'.format(x))
-
-        x = conv2d(
-            inputs=x,
-            filters=64,
-            kernel_size=[5, 5],
             padding="same",
             activation=activation,
             scope_name=2,
+            strides=[1, 1],
             use_lsuv=use_lsuv)
 
-        # x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[1, 1])
-        # print('[small_cnn] pool2== {}'.format(x))
-        x = conv2d(
-            inputs=x,
-            filters=64,
-            kernel_size=[2, 2],
-            padding="valid",
-            activation=activation,
-            scope_name=6,
-            use_lsuv=use_lsuv,
-            strides=[2, 2])
+        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
+        print('[small_cnn] pool2== {}'.format(x))
 
-        x = tf.reshape(x, [-1, 4 * 4 * 64])
+        x = tf.reshape(
+            x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
 
         x = tf.nn.dropout(x, keep_prob)
         x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
@@ -272,9 +255,9 @@ def conv2d(inputs,
                 [kernel_size[0], kernel_size[1],
                  x.get_shape()[3], filters], id, 0, 0)
             b = bias_variable_([filters], id, 0, 0)
-            x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
-            if use_bn:
-                x = batch_norm(x, phase_train, n_out=x.get_shape()[3])
+            x = tf.nn.conv2d(x, w, strides=strides, padding=padding) + b
+            # if use_bn:
+            # x = batch_norm(x, phase_train, n_out=x.get_shape()[3])
             x = activation(x)
         else:
             w = weight_variable_(
@@ -285,9 +268,16 @@ def conv2d(inputs,
                 0,
                 initializer=tf.initializers.orthogonal())
             b = bias_variable_([filters], id, 0, 0)
-            x = tf.nn.conv2d(x, w, strides=strides, padding=padding)
+            x = tf.nn.conv2d(x, w, strides=strides, padding=padding) + b
             x = activation(x)
             x = lsuv(x, w)
+
+        ws = tf.unstack(w, axis=3)
+        for w in ws:
+            values_to_log.append(
+                tf.summary.image(
+                    w.name,
+                    tf.reshape(w, [-1, kernel_size[0], kernel_size[1], 1])))
         print('[small_cnn] conv' + scope_name + ' == {}'.format(x))
         return x
 
