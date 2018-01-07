@@ -1,2 +1,4 @@
 MNIST_data/
 .vscode/
+log_test/
+log/
