@@ -31,6 +31,7 @@ def small_cnn(x,
     relu = lambda x: tf.nn.relu(x)
     elu = lambda x: tf.nn.elu(x)
     swish = lambda x: (x * tf.nn.sigmoid(x))
+    identical = lambda x: x
     activation = relu  # Activation Func to use
 
     with tf.variable_scope(name, reuse=reuse):
@@ -152,10 +153,10 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         with tf.variable_scope('scn1'):
             output = small_cnn(
                 scn_input, num_conv, keep_prob, phase_train, name='scn1')
-            output = tf.reshape(output, [m * n, -1, num_conv])
-            output = tf.reduce_mean(output, 0)
+            output = tf.reshape(output, [m, n, -1, num_conv])
+            # output = tf.reduce_mean(output, 0)
             print('[ensemble_reshaped_output]: {}'.format(output))
-
+        '''
         for es in range(e_size - 1):
             with tf.variable_scope('scn' + str(es + 2)):
                 o = small_cnn(
@@ -172,25 +173,33 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                 pass
 
         print('[ensemble_reshaped_output]: {}'.format(output))
+        '''
+
+        with tf.name_scope('depthwiseconv'):
+            output = tf.transpose(output, [2, 3, 0, 1])
+            output = tf.transpose(output, [0, 2, 3, 1])
+            print('[dwc transposed]: {}'.format(output))
+            # [filter_height, filter_width, in_channels, channel_multiplier]
+            W_dwc = weight_variable([m, n, num_conv, 1])
+            print('[dwc]: {}\n{}'.format(output, W_dwc))
+            h_dwc = tf.nn.depthwise_conv2d(
+                output, W_dwc, strides=[1, 1, 1, 1], padding='VALID')
+            print('[dwc conved]: {}'.format(output))
+
+        with tf.name_scope('output'):
+            output = tf.reshape(h_dwc, [-1, num_conv])
+
         return output, phase_train
 
 
-def svd_orthonormal(shape):
-    if len(shape) < 2:  # pragma: no cover
-        raise RuntimeError("Only shapes of length 2 or more are supported.")
-    flat_shape = (shape[0], np.prod(shape[1:]))
-    a = np.random.standard_normal(flat_shape)
-    u, _, v = np.linalg.svd(a, full_matrices=False)
-    q = u if u.shape == flat_shape else v
-    q = q.reshape(shape)
-    return q
+def depthwise_conv2d(x, W):
+    print('[dwc]: {}\n{}'.format(x, W))
+    return tf.nn.depthwise_conv2d(x, W, strides=[1, 1, 1, 1], padding='VALID')
 
 
 def lsuv(layer, w):
     print('[LSUV]: Treating weight {} at {}'.format(layer, w))
     batch = mnist.test.next_batch(bs)
-    # new_weight = svd_orthonormal(w.get_shape())
-    # w.assign(new_weight)
     with tf.Session(config=sess_config) as sess:
         sess.run(tf.global_variables_initializer())
         # global tol,t_max
@@ -229,6 +238,16 @@ def lsuv(layer, w):
     return layer
 
 
+def weight_variable(shape):
+    initial = tf.truncated_normal(shape, stddev=0.054)
+    return tf.Variable(initial)
+
+
+def bias_variable(shape):
+    initial = tf.constant(0.01, shape=shape)
+    return tf.Variable(initial)
+
+
 def weight_variable_(shape,
                      id,
                      j,
@@ -242,6 +261,10 @@ def weight_variable_(shape,
 def bias_variable_(shape, id, j, k, initializer=tf.constant_initializer(0)):
     return tf.get_variable("biases" + str(id) + "a" + str(j) + "a" + str(k),
                            shape, None, initializer)
+
+
+def depthwise_conv2d(inputs, W, scope_name=None):
+    return tf.nn.depthwise_conv2d(x, W, strides=[1, 1, 1, 1], padding='VALID')
 
 
 def conv2d(inputs,
