@@ -34,26 +34,37 @@ def small_cnn(x,
     activation = relu  # Activation Func to use
 
     with tf.variable_scope(name, reuse=reuse):
+
         x = conv2d(
             inputs=x,
-            filters=64,
+            filters=16,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
-            strides=[1, 1],
+            strides=[2, 2],
             scope_name=1,
             use_lsuv=use_lsuv)
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
+        x = tf.nn.dropout(x, keep_prob * 1.5)
         print('[small_cnn] pool1== {}'.format(x))
 
         x = conv2d(
             inputs=x,
-            filters=64,
-            kernel_size=[2, 2],
+            filters=32,
+            kernel_size=[5, 5],
             padding="same",
             activation=activation,
             scope_name=2,
+            strides=[1, 1],
+            use_lsuv=use_lsuv)
+        x = conv2d(
+            inputs=x,
+            filters=32,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=activation,
+            scope_name=3,
             strides=[1, 1],
             use_lsuv=use_lsuv)
 
