@@ -38,7 +38,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=16,
+            filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -51,7 +51,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=48,
+            filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -66,10 +66,10 @@ def small_cnn(x,
             x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
 
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
+        x = dense(x, 1024, 1, activation=activation, use_lsuv=use_lsuv)
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
-        x = tf.nn.dropout(x, keep_prob)
+        # x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
+        # x = tf.nn.dropout(x, keep_prob)
 
         x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
         pass
@@ -140,46 +140,54 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
 
-        with tf.variable_scope('scn1'):
-            output = small_cnn(
-                scn_input, num_conv, keep_prob, phase_train, name='scn1')
-            output = tf.reshape(output, [m, n, -1, num_conv])
-            # output = tf.reduce_mean(output, 0)
+        if not use_dws:
+            with tf.variable_scope('scn1'):
+                output = small_cnn(
+                    scn_input, num_conv, keep_prob, phase_train, name='scn1')
+                output = tf.reshape(output, [m * n, -1, num_conv])
+                output = tf.reduce_mean(output, 0)
+                print('[ensemble_reshaped_output]: {}'.format(output))
+
+            for es in range(e_size - 1):
+                with tf.variable_scope('scn' + str(es + 2)):
+                    o = small_cnn(
+                        scn_input,
+                        num_conv,
+                        keep_prob,
+                        phase_train,
+                        name='scn' + str(es + 2))
+                    o = tf.reshape(o, [m * n, -1, num_conv])
+                    o = tf.reduce_mean(o, 0)
+                    output += o
+                    print('[ensemble_reshaped_output{}]: {}'.format(
+                        es + 2, output))
+                    pass
             print('[ensemble_reshaped_output]: {}'.format(output))
-        '''
-        for es in range(e_size - 1):
-            with tf.variable_scope('scn' + str(es + 2)):
-                o = small_cnn(
-                    scn_input,
-                    num_conv,
-                    keep_prob,
-                    phase_train,
-                    name='scn' + str(es + 2))
-                o = tf.reshape(o, [m * n, -1, num_conv])
-                o = tf.reduce_mean(o, 0)
-                output += o
-                print('[ensemble_reshaped_output{}]: {}'.format(
-                    es + 2, output))
-                pass
+            return output, phase_train
 
-        print('[ensemble_reshaped_output]: {}'.format(output))
-        '''
+        else:
+            with tf.variable_scope('scn1'):
+                output = small_cnn(
+                    scn_input, num_conv, keep_prob, phase_train, name='scn1')
+                output = tf.reshape(output, [m, n, -1, num_conv])
 
-        with tf.name_scope('depthwiseconv'):
-            output = tf.transpose(output, [2, 3, 0, 1])
-            output = tf.transpose(output, [0, 2, 3, 1])
-            print('[dwc transposed]: {}'.format(output))
-            # [filter_height, filter_width, in_channels, channel_multiplier]
-            W_dwc = weight_variable([m, n, num_conv, 1])
-            print('[dwc]: {}\n{}'.format(output, W_dwc))
-            h_dwc = tf.nn.depthwise_conv2d(
-                output, W_dwc, strides=[1, 1, 1, 1], padding='VALID')
-            print('[dwc conved]: {}'.format(output))
+            with tf.name_scope('depthwiseconv'):
+                # output = tf.transpose(output, [2, 3, 0, 1])
+                # output = tf.transpose(output, [0, 2, 3, 1])
+                # [m, n, -1, 10] => [-1, m, n, 10]
+                output = tf.transpose(output, [2, 0, 1, 3])
+                print('[dwc transposed]: {}'.format(output))
+                # [filter_height, filter_width, in_channels, channel_multiplier]
+                W_dwc = weight_variable([m, n, num_conv, 1])
+                print('[dwc]: {}\n{}'.format(output, W_dwc))
+                h_dwc = tf.nn.depthwise_conv2d(
+                    output, W_dwc, strides=[1, 1, 1, 1], padding='VALID')
+                print('[dwc conved]: {}'.format(output))
 
-        with tf.name_scope('output'):
-            output = tf.reshape(h_dwc, [-1, num_conv])
+            with tf.name_scope('output'):
+                output = tf.reshape(h_dwc, [-1, num_conv])
 
-        return output, phase_train
+            return output, phase_train
 
 
 def depthwise_conv2d(x, W):
