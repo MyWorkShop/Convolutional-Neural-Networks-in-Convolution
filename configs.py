@@ -36,7 +36,7 @@ t_max = 30
 dry_run = True
 
 # Depth-wise Conv Setting
-use_dws = False
+use_dws = True
 
 e_size = 1  # Ensemble size
 run_description = 'bn_swish_conv2_fc256_128_dp3_0.5_bs' + str(

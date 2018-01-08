@@ -38,11 +38,11 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=64,
+            filters=32,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
-            strides=[2, 2],
+            strides=[1, 1],
             scope_name=1,
             use_lsuv=use_lsuv)
 
@@ -51,7 +51,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=64,
+            filters=48,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -172,8 +172,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                 output = tf.reshape(output, [m, n, -1, num_conv])
 
             with tf.name_scope('depthwiseconv'):
-                # output = tf.transpose(output, [2, 3, 0, 1])
-                # output = tf.transpose(output, [0, 2, 3, 1])
+                print('[dwc input]: {}'.format(output))
                 # [m, n, -1, 10] => [-1, m, n, 10]
                 output = tf.transpose(output, [2, 0, 1, 3])
                 print('[dwc transposed]: {}'.format(output))
@@ -191,7 +190,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
 
 
 def depthwise_conv2d(x, W):
-    print('[dwc]: {}\n{}'.format(x, W))
+    # print('[dwc]: {}\n{}'.format(x, W))
     return tf.nn.depthwise_conv2d(x, W, strides=[1, 1, 1, 1], padding='VALID')
 
 
