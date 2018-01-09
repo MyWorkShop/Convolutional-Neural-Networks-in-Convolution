@@ -38,7 +38,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=32,
+            filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -47,11 +47,21 @@ def small_cnn(x,
             use_lsuv=use_lsuv)
 
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
+        x = tf.nn.dropout(x, keep_prob * 1.7)
         print('[small_cnn] pool1== {}'.format(x))
 
         x = conv2d(
             inputs=x,
-            filters=48,
+            filters=64,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=activation,
+            scope_name=3,
+            strides=[1, 1],
+            use_lsuv=use_lsuv)
+        x = conv2d(
+            inputs=x,
+            filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -66,12 +76,12 @@ def small_cnn(x,
             x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
 
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 1024, 1, activation=activation, use_lsuv=use_lsuv)
+        x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
         x = tf.nn.dropout(x, keep_prob)
-        # x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
-        # x = tf.nn.dropout(x, keep_prob)
+        x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
+        x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
+        x = dense(x, 9, 3, activation=activation, use_lsuv=use_lsuv)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
