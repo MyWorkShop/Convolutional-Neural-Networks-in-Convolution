@@ -56,7 +56,7 @@ def small_cnn(x,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
-            scope_name=3,
+            scope_name=2,
             strides=[1, 1],
             use_lsuv=use_lsuv)
         x = conv2d(
@@ -81,7 +81,7 @@ def small_cnn(x,
         x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 9, 3, activation=activation, use_lsuv=use_lsuv)
+        x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
