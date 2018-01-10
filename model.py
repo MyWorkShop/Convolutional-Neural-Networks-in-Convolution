@@ -259,7 +259,8 @@ def weight_variable_(shape,
                      id,
                      j,
                      k,
-                     initializer=tf.random_normal_initializer(0, 0.1)):
+                     initializer=tf.orthogonal_initializer()):
+                     # initializer=tf.random_normal_initializer(0, 0.1)):
     print("weights" + str(id) + "a" + str(j) + "a" + str(k))
     return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
                            shape, None, initializer)
