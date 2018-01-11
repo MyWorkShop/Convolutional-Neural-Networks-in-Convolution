@@ -69,6 +69,39 @@ def CNN(x, reuse=False):
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
         print('[small_cnn] pool2== {}'.format(x))
 
+        # 16x16)25x25
+        x = conv2d(
+            inputs=x,
+            filters=256,
+            kernel_size=[1, 1],
+            padding="same",
+            activation=activation,
+            strides=[1, 1],
+            scope_name=4,
+            use_lsuv=use_lsuv)
+        x = conv2d(
+            inputs=x,
+            filters=128,
+            kernel_size=[1, 1],
+            padding="same",
+            activation=activation,
+            strides=[1, 1],
+            scope_name=5,
+            use_lsuv=use_lsuv)
+        x = conv2d(
+            inputs=x,
+            filters=10,
+            kernel_size=[1, 1],
+            padding="same",
+            activation=activation,
+            strides=[1, 1],
+            scope_name=6,
+            use_lsuv=use_lsuv)
+        x = tf.reshape(x, [-1, 7 * 7, 10])
+        x = tf.transpose(x, [0, 2, 1])
+        print('[small_cnn] To pool <= {}'.format(x))
+        x = tf.reduce_sum(x, axis=2)
+        '''
         x = tf.reshape(
             x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
 
@@ -79,8 +112,8 @@ def CNN(x, reuse=False):
         x = tf.nn.dropout(x, keep_prob)
 
         x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
+        '''
         pass
-
     print('[small_cnn] output <= {}'.format(x))
     return x, keep_prob
 
