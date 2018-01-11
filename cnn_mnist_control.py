@@ -56,19 +56,18 @@ def CNN(x, reuse=False):
             scope_name=2,
             strides=[1, 1],
             use_lsuv=use_lsuv)
+
+        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
+        print('[small_cnn] pool2== {}'.format(x))
         x = conv2d(
             inputs=x,
             filters=64,
-            kernel_size=[5, 5],
+            kernel_size=[4, 4],
             padding="same",
             activation=activation,
             scope_name=3,
             strides=[1, 1],
             use_lsuv=use_lsuv)
-
-        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
-        print('[small_cnn] pool2== {}'.format(x))
-
         # 16x16)25x25
         x = conv2d(
             inputs=x,
@@ -88,6 +87,9 @@ def CNN(x, reuse=False):
             strides=[1, 1],
             scope_name=5,
             use_lsuv=use_lsuv)
+
+        print('[small_cnn] To pool <= {}'.format(x))
+
         x = conv2d(
             inputs=x,
             filters=10,
@@ -97,7 +99,9 @@ def CNN(x, reuse=False):
             strides=[1, 1],
             scope_name=6,
             use_lsuv=use_lsuv)
-        x = tf.reshape(x, [-1, 7 * 7, 10])
+        x = tf.reshape(
+            x, [-1, x.get_shape()[1] * x.get_shape()[2],
+                x.get_shape()[3]])
         x = tf.transpose(x, [0, 2, 1])
         print('[small_cnn] To pool <= {}'.format(x))
         x = tf.reduce_sum(x, axis=2)
