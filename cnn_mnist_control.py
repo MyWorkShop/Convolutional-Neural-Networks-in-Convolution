@@ -17,42 +17,72 @@ FLAGS = None
 
 # Classical CNN for contrast in overfit index
 
+from model import *
+
 
 def CNN(x, reuse=False):
-    print('CNN input: {}'.format(x))
-    with tf.variable_scope('CNN', reuse=reuse):
-        with tf.name_scope('reshape1'):
-            x = tf.reshape(x, [-1, 28, 28, 1])
+    use_lsuv = False
+    print('[small_cnn] input => {}'.format(x))
+    lrelu = lambda x, alpha=0.2: tf.maximum(x, alpha * x)
+    relu = lambda x: tf.nn.relu(x)
+    elu = lambda x: tf.nn.elu(x)
+    swish = lambda x: (x * tf.nn.sigmoid(x))
+    identical = lambda x: x
+    activation = relu  # Activation Func to use
 
-        with tf.name_scope('conv1'):
-            x = tf.layers.conv2d(x, 20, [5, 5], padding='SAME')
+    with tf.variable_scope("cnn_control", reuse=reuse):
 
-        with tf.name_scope('pool1'):
-            x = tf.layers.max_pooling2d(x, [2, 2], [2, 2], padding='SAME')
+        x = tf.reshape(x, [-1, 28, 28, 1])
+        x = conv2d(
+            inputs=x,
+            filters=64,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=activation,
+            strides=[1, 1],
+            scope_name=1,
+            use_lsuv=use_lsuv)
 
-        with tf.name_scope('conv2'):
-            x = tf.layers.conv2d(x, 50, [5, 5], padding='SAME')
+        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
+        x = tf.nn.dropout(x, keep_prob * 1.7)
+        print('[small_cnn] pool1== {}'.format(x))
 
-        with tf.name_scope('pool2'):
-            x = tf.layers.max_pooling2d(x, [2, 2], [2, 2],padding='VALID')
-            #=>[-1,7,7,50]
-        print('Convolution output: {}'.format(x))
+        x = conv2d(
+            inputs=x,
+            filters=64,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=activation,
+            scope_name=2,
+            strides=[1, 1],
+            use_lsuv=use_lsuv)
+        x = conv2d(
+            inputs=x,
+            filters=64,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=activation,
+            scope_name=3,
+            strides=[1, 1],
+            use_lsuv=use_lsuv)
 
-        with tf.name_scope('reshape2'):
-            x = tf.reshape(x, [-1, 7*7*50])
+        x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
+        print('[small_cnn] pool2== {}'.format(x))
 
-        with tf.name_scope('dense1'):
-            x = tf.layers.dense(x, 256, tf.nn.elu)
+        x = tf.reshape(
+            x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
 
-        with tf.name_scope('dense2'):
-            x = tf.layers.dense(x, 64, tf.nn.elu)
+        x = tf.nn.dropout(x, keep_prob)
+        x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
+        x = tf.nn.dropout(x, keep_prob)
+        x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
+        x = tf.nn.dropout(x, keep_prob)
 
-        with tf.name_scope('dense3'):
-            x = tf.layers.dense(x, 10, tf.nn.elu)
+        x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
+        pass
 
-        print('CNN output: {}'.format(x))
-        return x
-    pass
+    print('[small_cnn] output <= {}'.format(x))
+    return x, keep_prob
 
 
 def main(_):
@@ -66,7 +96,7 @@ def main(_):
         y_ = tf.placeholder(tf.float32, [None, 10], name='validation')
 
     with tf.name_scope('CNN'):
-        y_conv = CNN(x)
+        y_conv, keep_prob = CNN(x)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
@@ -133,14 +163,18 @@ def main(_):
             print('[saver] Failed to load parameter: {}'.format(e))
 
         import numpy as np
-        print('[total_trainable]: {}'.format(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
+        print('[total_trainable]: {}'.format(
+            np.sum([
+                np.prod(v.get_shape().as_list())
+                for v in tf.trainable_variables()
+            ])))
         t0 = time.clock()
         rt = 0.001
         train_loss = 0
         #for i in range(150000):
         for i in range(150000):
             # Get the data of next batch
-            bs = 16
+            bs = 48
             batch = mnist.train.next_batch(bs)
             #if i % 1000 == 0:
             if i % 1000 == 0:
@@ -152,13 +186,14 @@ def main(_):
                 train_accuracy = 0
                 validation_loss = 0
                 for index in range(50):
-                    vbs=200
+                    vbs = 200
                     accuracy_batch = mnist.test.next_batch(vbs)
                     new_acc, v_loss = sess.run(
                         [accuracy, cross_entropy],
                         feed_dict={
                             x: accuracy_batch[0],
                             y_: accuracy_batch[1],
+                            keep_prob: 1,
                         })
                     train_accuracy += new_acc
                     validation_loss += v_loss
@@ -169,16 +204,20 @@ def main(_):
                 print(
                     'epoch: %g|acc: %g|time: %g|v_loss: %g|train_loss: %g|overfit: %g|'
                     % (i, train_accuracy, (time.clock() - t0), validation_loss,
-                       train_loss, (validation_loss/vbs - train_loss/bs)*100))
+                       train_loss,
+                       (validation_loss / vbs - train_loss / bs) * 100))
                 t0 = time.clock()
-
+                '''
                 # Log loss
                 summary = summary_op.eval(feed_dict={
                     x: accuracy_batch[0],
                     y_: accuracy_batch[1],
+                    keep_prob: 1,
+                    rate: rt
                 })
                 writer.add_summary(summary, i * bs)
 
+                '''
                 # Save parameters
                 if (i % 5000 == 0):
                     real_location = saver.save(
@@ -193,7 +232,8 @@ def main(_):
                 feed_dict={
                     x: batch[0],
                     y_: batch[1],
-                    rate: rt
+                    rate: rt,
+                    keep_prob: 0.5
                 })
     #'''
 
