@@ -1,4 +1,5 @@
 MNIST_data/
 .vscode/
+.idea/
 log_test/
 log/

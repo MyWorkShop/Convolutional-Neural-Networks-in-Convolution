@@ -76,11 +76,14 @@ def summary_layer(weight, bias):
         with tf.name_scope('bias'):
             variable_summaries(bias)
 
+
 def summary_output(output):
     with tf.name_scope('summaries_output'):
         output = tf.transpose(output, [0, 3, 1, 2])
-        output = tf.reshape(output, [-1, output.get_shape().as_list()[2], output.get_shape().as_list()[3], 1])
+        output = tf.reshape(
+            output, [-1, output.get_shape().as_list()[2], output.get_shape().as_list()[3], 1])
         tf.summary.image('output', output, 10)
+
 
 def variable_summaries(var):
     with tf.name_scope('summaries_var'):
@@ -124,7 +127,7 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 3
+        stride = 4
 
     with tf.name_scope('pad'):
         # pad of input
@@ -168,7 +171,7 @@ def scscn(x, num, num_conv):
         slicing.close().mark_used()
     with tf.name_scope('samll_cnn'):
         scn = small_cnn(scn_input, num_conv, keep_prob)
-        scn = tf.reshape(scn, [m , n, -1, num_conv])
+        scn = tf.reshape(scn, [m, n, -1, num_conv])
         scn = tf.transpose(scn, [2, 3, 0, 1])
         draw = tf.reshape(scn, [-1, m, n, 1])
         summary_output(draw)
@@ -225,8 +228,8 @@ def main(_):
         config.gpu_options.allow_growth = True
 
     with tf.name_scope('tensorboard'):
-        graph_location = './log/'+str(datetime.datetime.now())
-        test_location = './log_test/'+str(datetime.datetime.now())
+        graph_location = './log/' + str(datetime.datetime.now())
+        test_location = './log_test/' + str(datetime.datetime.now())
         print('Saving graph to: %s' % graph_location)
         train_writer = tf.summary.FileWriter(graph_location)
         test_writer = tf.summary.FileWriter(test_location)
@@ -262,20 +265,25 @@ def main(_):
                             y_: accuracy_batch[1], keep_prob: 1.0})
                     test_accuracy += test_accuracy_once
                     test_accuracy_once = 0
-                    # tf.train_writer(summary, i / 600)
+                    test_summary = tf.Summary()
+                    test_summary.value.add(
+                        tag="acc", simple_value=test_accuracy / 200)
+                    test_writer.add_summary(test_summary, i / 600)
                 print('%g, %g, %g' %
                       (i / 600, test_accuracy / 200, (time.clock() - t0)))
                 test_summary = tf.Summary()
-                test_summary.value.add(tag="acc", simple_value=test_accuracy / 200)
+                test_summary.value.add(
+                    tag="acc", simple_value=test_accuracy / 200)
                 test_writer.add_summary(test_summary, i / 600)
                 t0 = time.clock()
                 train_loss = 0
             # Train
-            train_loss_once, summary, _ = sess.run([cross_entropy, merged, train_step],
-                                                  feed_dict={x: batch[0],
-                                                             y_: batch[1],
-                                                             keep_prob: 0.5,
-                                                             rate: rt})
+            train_loss_once, summary, _ = sess.run(
+                [cross_entropy, merged, train_step],
+                                                   feed_dict={x: batch[0],
+                                                              y_: batch[1],
+                                                              keep_prob: 0.5,
+                                                              rate: rt})
             train_loss += train_loss_once
             train_loss_once = 0
             train_writer.add_summary(summary, i)
