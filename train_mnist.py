@@ -127,7 +127,7 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 4
+        stride = 3
 
     with tf.name_scope('pad'):
         # pad of input
