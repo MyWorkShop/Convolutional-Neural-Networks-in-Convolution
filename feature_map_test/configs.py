@@ -34,13 +34,13 @@ use_bn = True
 use_lsuv = False
 tol = 0.2
 t_max = 30
-dry_run = True
+dry_run = False
 
 # Depth-wise Conv Setting
-use_dws = True
+use_dws = False
 
-e_size = 1  # Ensemble size
-run_description = 'bn_swish_conv2_fc256_128_dp3_0.5_bs' + str(
+e_size = 2  # Ensemble size
+run_description = 'feature_map_cmp' + str(
     bs) + '_lr_' + str(rt) + 'normal' + str(e_size)
 graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
 save_location = '/tmp/saved_models/' + run_description + '/saved'

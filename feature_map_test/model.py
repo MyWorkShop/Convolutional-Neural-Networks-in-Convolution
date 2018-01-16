@@ -38,7 +38,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=16,
+            filters=32,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -281,7 +281,8 @@ def conv2d(inputs,
            id=0,
            use_lsuv=False,
            use_bn=use_bn,
-           reuse=False):
+           reuse=False,
+           draw=False):
     x = inputs
     strides = [1, strides[0], strides[1], 1]
     scope_name = 'conv' + str(scope_name)

@@ -281,7 +281,8 @@ def conv2d(inputs,
            id=0,
            use_lsuv=False,
            use_bn=use_bn,
-           reuse=False):
+           reuse=False,
+           draw=False):
     x = inputs
     strides = [1, strides[0], strides[1], 1]
     scope_name = 'conv' + str(scope_name)
@@ -310,12 +311,15 @@ def conv2d(inputs,
             x = activation(x)
             x = lsuv(x, w)
 
-        ws = tf.unstack(w, axis=3)
-        for w in ws:
-            values_to_log.append(
-                tf.summary.image(
-                    w.name,
-                    tf.reshape(w, [-1, kernel_size[0], kernel_size[1], 1])))
+        if draw:
+            print('[small_cnn] conv' + scope_name + ' drawing')
+            ws = tf.unstack(w, axis=3)
+            for w in ws:
+                values_to_log.append(
+                    tf.summary.image(
+                        w.name,
+                        tf.reshape(w,
+                                   [-1, kernel_size[0], kernel_size[1], 1])))
         print('[small_cnn] conv' + scope_name + ' == {}'.format(x))
         return x
 
