@@ -56,7 +56,6 @@ def main(_):
             zoom_range=0.2,
             horizontal_flip=False,
             fill_mode='nearest')
-
         print('[total_trainable]: {}'.format(
             np.sum([
                 np.prod(v.get_shape().as_list())

@@ -38,7 +38,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=64,
+            filters=16,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -52,7 +52,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=64,
+            filters=32,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -61,7 +61,7 @@ def small_cnn(x,
             use_lsuv=use_lsuv)
         x = conv2d(
             inputs=x,
-            filters=64,
+            filters=32,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -98,7 +98,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 3
+        stride = 4
 
     with tf.name_scope('pad'):
         # pad of input
@@ -255,12 +255,8 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 
-def weight_variable_(shape,
-                     id,
-                     j,
-                     k,
-                     initializer=tf.orthogonal_initializer()):
-                     # initializer=tf.random_normal_initializer(0, 0.1)):
+def weight_variable_(shape, id, j, k, initializer=tf.orthogonal_initializer()):
+    # initializer=tf.random_normal_initializer(0, 0.1)):
     print("weights" + str(id) + "a" + str(j) + "a" + str(k))
     return tf.get_variable("weights" + str(id) + "a" + str(j) + "a" + str(k),
                            shape, None, initializer)
