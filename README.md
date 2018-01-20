@@ -6,7 +6,7 @@ CNNis one of the classical architectures that reaches a decent performance on ob
 The depth of CNN, usually the numbers of convolutional layers in a network are directly related to its performance.
 Because of this, increasingly more works have been taken out working on methods of approaching deeper network. 
 
-While much research has been conducted to boosted the depth of the network meanwhile, the resistance encountered when creating a deeper network, including exploding or vanishing gradient problem, intensives. The conventional solution using Deep Residual Structure addressing the fore-mentioned problems, actually breaks a deep network into the addition of multiple shallower substitutes. We thus predict that a wider approach with CNN may as well lead to improved discriminability without burdens of deeper structures. 
+While much research has been conducted to boost the depth of the network meanwhile, the resistance encountered when creating a deeper network, including exploding or vanishing gradient problem, intensives. The conventional solution using Deep Residual Structure addressing the fore-mentioned problems, actually breaks a deep network into the addition of multiple shallower substitutes. We thus predict that a wider approach with CNN may as well lead to improved discriminability without burdens of deeper structures. 
 
 Ensemble-based classifiers, the foundation of wider networks, combines an ensemble of different weighed individual sub-classiﬁers trained with differently manipulated data-sets to acquire a performance over any individual classifier inside the ensemble.
 
