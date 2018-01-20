@@ -32,32 +32,32 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
         b_conv1 = bias_variable([16])
         h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
         summary_layer(W_conv1, b_conv1)
-        summary_output(h_conv1)
+        # summary_output(h_conv1)
 
     with tf.variable_scope('conv2', reuse=reuse):
         W_conv2 = weight_variable([5, 5, 16, 32])
         b_conv2 = bias_variable([32])
         h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+        h_pool2 = tf.nn.dropout(avg_pool(h_conv2, 2, 2), keep_prob) / tf.sqrt(keep_prob)
         summary_layer(W_conv2, b_conv2)
-        summary_output(h_conv2)
-        h_pool2 = tf.nn.dropout(avg_pool(h_conv2, 2, 2), keep_prob)
+        # summary_output(h_conv2)
 
     with tf.variable_scope('conv3', reuse=reuse):
         W_conv3 = weight_variable([5, 5, 32, 32])
         b_conv3 = bias_variable([32])
         h_conv3 = activation(conv2d(h_pool2, W_conv3) + b_conv3)
         summary_layer(W_conv3, b_conv3)
-        summary_output(h_conv3)
+        # summary_output(h_conv3)
 
     with tf.variable_scope('pool2'):
-        h_pool2 = tf.nn.dropout(avg_pool(h_conv3, 2, 2), keep_prob)
+        h_pool2 = tf.nn.dropout(avg_pool(h_conv3, 2, 2), keep_prob) / tf.sqrt(keep_prob)
         h_pool2_flat = tf.reshape(h_pool2, [-1, 32 * 16])
 
     with tf.variable_scope('fc1', reuse=False):
         W_fc1 = weight_variable([32 * 16, 1024])
         b_fc1 = bias_variable([1024])
         h_fc1 = activation(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob) / tf.sqrt(keep_prob)
         summary_layer(W_fc1, b_fc1)
 
     with tf.variable_scope('fc', reuse=reuse):
@@ -66,7 +66,7 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
         h_fc = tf.matmul(h_fc1_drop, W_fc) + b_fc
         summary_layer(W_fc, b_fc)
 
-    return tf.nn.dropout(h_fc, keep_prob)
+    return tf.nn.dropout(h_fc, keep_prob) / tf.sqrt(keep_prob)
 
 
 def summary_layer(weight, bias):
@@ -188,7 +188,7 @@ def scscn(x, num, num_conv):
 
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.1)
+    initial = tf.truncated_normal(shape, stddev=0.05)
     return tf.Variable(initial)
 
 
