@@ -36,7 +36,6 @@ def show_img(imgs):
     fig.add_subplot(2, 2, 4)
     plt.imshow(imgs[1])
     plt.show()
-    # plt.waitforbuttonpress()
     plt.close()
 
 
@@ -66,12 +65,14 @@ for img1_name in dir1:
     for img2_name in dir2:
         img1 = get_img('./scn1_conv1/' + img1_name)
         img2 = get_img('./scn2_conv1/' + img2_name)
-        print(mse(img1, img2))
+        # print(mse(img1, img2))
         if (mse(img1, img2) < num_min):
             min_ = [img1_name, img2_name]
             num_min = mse(img1, img2)
             img_min = [img1, img2]
         pass
-    print(min_)
+    # print(min_)
+    # print(num_min)
+    print('{}|{}'.format(num_min, min_))
     show_img(img_min)
     pass
