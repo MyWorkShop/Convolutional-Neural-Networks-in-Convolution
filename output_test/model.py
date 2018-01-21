@@ -38,7 +38,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=16,
+            filters=32,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -287,15 +287,12 @@ def conv2d(inputs,
             x = activation(x)
             x = lsuv(x, w)
 
-        if draw:
-            print('[small_cnn] conv' + scope_name + ' drawing')
-            ws = tf.unstack(w, axis=3)
-            for w in ws:
-                values_to_log.append(
-                    tf.summary.image(
-                        w.name,
-                        tf.reshape(w,
-                                   [-1, kernel_size[0], kernel_size[1], 1])))
+        ws = tf.unstack(w, axis=3)
+        for w in ws:
+            values_to_log.append(
+                tf.summary.image(
+                    w.name,
+                    tf.reshape(w, [-1, kernel_size[0], kernel_size[1], 1])))
         print('[small_cnn] conv' + scope_name + ' == {}'.format(x))
         return x
 
