@@ -38,7 +38,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=16,
+            filters=32,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -76,10 +76,10 @@ def small_cnn(x,
             x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
 
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 256, 1, activation=activation, use_lsuv=use_lsuv)
+        x = dense(x, 1024, 1, activation=activation, use_lsuv=use_lsuv)
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
-        x = tf.nn.dropout(x, keep_prob)
+        # x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
+        # x = tf.nn.dropout(x, keep_prob)
 
         x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
         pass
@@ -150,15 +150,8 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
 
-        variance_cal = []
-        '''
-        with tf.variable_scope('scn1'):
-            output = small_cnn(
-                scn_input, num_conv, keep_prob, phase_train, name='scn1')
-            output = tf.reshape(output, [m * n, -1, num_conv])
-            output = tf.reduce_mean(output, 0)
-            print('[ensemble_reshaped_output]: {}'.format(output))
-        '''
+        variance_cal_scnn = []
+        mse_scnn = 0
         output = None
 
         for es in range(e_size):
@@ -172,7 +165,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                     name='scn' + str(es))
                 o = tf.reshape(o, [m * n, -1, num_conv])
                 o = tf.reduce_mean(o, 0)
-                variance_cal.append(o)
+                variance_cal_scnn.append(o)
                 if output == None:
                     output = o
                 else:
@@ -183,14 +176,15 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                 pass
         print('[ensemble_reshaped_output_all]: {}'.format(output))
 
-        for o in variance_cal:
-            for o in variance_cal:
+        for o in variance_cal_scnn:
+            for o_ in variance_cal_scnn:
                 # TODO: Add variance cal
+                mse_scnn += tf.losses.mean_squared_error(o, o_)
                 pass
-            print(o)
             values_to_log.append(
                 tf.summary.image(o.name, tf.reshape(o, [-1, 2, 5, 1])))
             pass
+        values_to_log.append(tf.summary.scalar("mse_scnn", mse_scnn))
 
         return output, phase_train
 
@@ -284,7 +278,7 @@ def conv2d(inputs,
     scope_name = 'conv' + str(scope_name)
     padding = padding.upper()
 
-    with tf.variable_scope(scope_name, reuse=reuse):
+    with tf.variable_scope(scope_name, reuse=reuse, regularizer=regularizer):
         if not use_lsuv:
             w = weight_variable_(
                 [kernel_size[0], kernel_size[1],
@@ -307,16 +301,13 @@ def conv2d(inputs,
             x = activation(x)
             x = lsuv(x, w)
 
-        if draw:
-            print('[small_cnn] conv' + scope_name + ' drawing')
-            ws = tf.unstack(w, axis=3)
-            for w in ws:
-                values_to_log.append(
-                    tf.summary.image(
-                        w.name,
-                        tf.reshape(w,
-                                   [-1, kernel_size[0], kernel_size[1], 1])))
-        print('[small_cnn] conv' + scope_name + ' == {}'.format(x))
+        ws = tf.unstack(w, axis=3)
+        # for w in ws:
+        # values_to_log.append(
+        # tf.summary.image(
+        # w.name,
+        # tf.reshape(w, [-1, kernel_size[0], kernel_size[1], 1])))
+        # print('[small_cnn] conv' + scope_name + ' == {}'.format(x))
         return x
 
 
@@ -328,8 +319,13 @@ def dense(x,
           activation=tf.nn.relu,
           reuse=False):
     with tf.variable_scope('fc' + str(scope_name), reuse=reuse):
+        global custom_loss
         w = weight_variable_([x.get_shape()[1], num], id, 0, 0)
+        regularizer(w)
+        # custom_loss += tf.losses.mean_squared_error(
+        # w, tf.eye(num_rows=x.get_shape()[1], num_columns=num))
         b = bias_variable_([num], id, 0, 0)
+        regularizer(b)
         x = activation(tf.matmul(x, w) + b)
         if not use_lsuv:
             return x
@@ -397,8 +393,8 @@ with tf.name_scope('loss'):
 
     reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
-    cross_entropy = tf.reduce_mean(
-        cross_entropy)  #+ tf.reduce_mean(reg_losses)
+    cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
+        reg_losses) #+ tf.reduce_min(custom_loss) * 0.2
 
 with tf.name_scope('adam_optimizer'):
     rate = tf.placeholder(tf.float32)

@@ -150,8 +150,8 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
 
-        variance_cal = []
-        mse = 0
+        variance_cal_scnn = []
+        mse_scnn = 0
         output = None
 
         for es in range(e_size):
@@ -165,7 +165,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                     name='scn' + str(es))
                 o = tf.reshape(o, [m * n, -1, num_conv])
                 o = tf.reduce_mean(o, 0)
-                variance_cal.append(o)
+                variance_cal_scnn.append(o)
                 if output == None:
                     output = o
                 else:
@@ -176,10 +176,10 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                 pass
         print('[ensemble_reshaped_output_all]: {}'.format(output))
 
-        for o in variance_cal:
-            for o_ in variance_cal:
+        for o in variance_cal_scnn:
+            for o_ in variance_cal_scnn:
                 # TODO: Add variance cal
-                mse += tf.losses.mean_squared_error(o, o_)
+                mse_scnn += tf.losses.mean_squared_error(o, o_)
                 pass
             values_to_log.append(
                 tf.summary.image(o.name, tf.reshape(o, [-1, 2, 5, 1])))
