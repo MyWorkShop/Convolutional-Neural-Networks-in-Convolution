@@ -26,7 +26,7 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 # Training Setting
 rt = 1e-3
 aug = False
-bs = 48
+bs = 96
 
 use_bn = True
 

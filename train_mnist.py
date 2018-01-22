@@ -72,7 +72,7 @@ def main(_):
 
             global rt
             # rt *= 0.993
-            # '''
+            '''
             if i * 48 == 30000 * bs:
                 rt = 3e-4
                 print('new rt: {}'.format(rt))
@@ -82,9 +82,13 @@ def main(_):
             if i * 48 == 54000 * bs:
                 rt = 3e-5
                 print('new rt: {}'.format(rt))
-            # '''
+            '''
 
             if i % 600 == 0:
+                if i == 30000:
+                    rt = 3e-4
+                if i == 42000:
+                    rt = 1e-4
                 # Print the accuracy
                 validation_accuracy = 0
                 validation_loss = 0
