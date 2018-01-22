@@ -150,28 +150,48 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         print('[slicing]: {}'.format(scn_input))
         slicing.close().mark_used()
 
+        variance_cal = []
+        '''
         with tf.variable_scope('scn1'):
             output = small_cnn(
                 scn_input, num_conv, keep_prob, phase_train, name='scn1')
             output = tf.reshape(output, [m * n, -1, num_conv])
             output = tf.reduce_mean(output, 0)
             print('[ensemble_reshaped_output]: {}'.format(output))
+        '''
+        output = None
 
-        for es in range(e_size - 1):
-            with tf.variable_scope('scn' + str(es + 2)):
+        for es in range(e_size):
+            with tf.variable_scope('scn' + str(es)):
+                print('es{}--------------------------'.format(es))
                 o = small_cnn(
                     scn_input,
                     num_conv,
                     keep_prob,
                     phase_train,
-                    name='scn' + str(es + 2))
+                    name='scn' + str(es))
                 o = tf.reshape(o, [m * n, -1, num_conv])
                 o = tf.reduce_mean(o, 0)
-                output += o
+                variance_cal.append(o)
+                if output == None:
+                    output = o
+                else:
+                    output += o
                 print('[ensemble_reshaped_output{}]: {}'.format(
-                    es + 2, output))
+                    es + 1, output))
+                print('es{}--------------------------'.format(es))
                 pass
-        print('[ensemble_reshaped_output]: {}'.format(output))
+        print('[ensemble_reshaped_output_all]: {}'.format(output))
+
+        for o in variance_cal:
+            for o in variance_cal:
+                # TODO: Add variance cal
+                pass
+            print(o)
+            values_to_log.append(
+                tf.summary.image(o.name, tf.reshape(o, [-1, 2, 5, 1])))
+            pass
+
         return output, phase_train
 
 
