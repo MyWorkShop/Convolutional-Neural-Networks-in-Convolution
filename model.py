@@ -184,6 +184,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
             values_to_log.append(
                 tf.summary.image(o.name, tf.reshape(o, [-1, 2, 5, 1])))
             pass
+        custom_loss+=mse_scnn*0.01
         values_to_log.append(tf.summary.scalar("mse_scnn", mse_scnn))
 
         return output, phase_train
@@ -394,7 +395,7 @@ with tf.name_scope('loss'):
     reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
     cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
-        reg_losses) #+ tf.reduce_min(custom_loss) * 0.2
+        reg_losses) + tf.reduce_min(custom_loss)
 
 with tf.name_scope('adam_optimizer'):
     rate = tf.placeholder(tf.float32)

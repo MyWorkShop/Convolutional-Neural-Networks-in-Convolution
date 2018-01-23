@@ -57,5 +57,5 @@ with tf.name_scope('config'):
     # config.gpu_options.per_process_gpu_memory_fraction = 0.4
     sess_config = config
 
-regularizer = tf.contrib.layers.l2_regularizer(0.2)
+regularizer = tf.contrib.layers.l2_regularizer(0.05)
 custom_loss=0
