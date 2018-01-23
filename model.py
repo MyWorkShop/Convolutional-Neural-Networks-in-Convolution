@@ -52,7 +52,7 @@ def small_cnn(x,
 
         x = conv2d(
             inputs=x,
-            filters=32,
+            filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -61,7 +61,7 @@ def small_cnn(x,
             use_lsuv=use_lsuv)
         x = conv2d(
             inputs=x,
-            filters=32,
+            filters=64,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
@@ -345,14 +345,10 @@ def dense(x,
           use_lsuv=False,
           activation=tf.nn.relu,
           reuse=False):
-    with tf.variable_scope('fc' + str(scope_name), reuse=reuse):
+    with tf.variable_scope('fc' + str(scope_name), reuse=reuse,regularizer=regularizer):
         global custom_loss
         w = weight_variable_([x.get_shape()[1], num], id, 0, 0)
-        regularizer(w)
-        # custom_loss += tf.losses.mean_squared_error(
-        # w, tf.eye(num_rows=x.get_shape()[1], num_columns=num))
         b = bias_variable_([num], id, 0, 0)
-        regularizer(b)
         x = activation(tf.matmul(x, w) + b)
         if not use_lsuv:
             return x

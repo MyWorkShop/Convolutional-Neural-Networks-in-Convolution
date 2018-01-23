@@ -34,7 +34,8 @@ use_bn = True
 use_lsuv = False
 tol = 0.2
 t_max = 30
-dry_run = True
+
+dry_run = False
 
 e_size = 6  # Ensemble size
 run_description = 'bn_swish_conv2_fc256_128_dp3_0.5_bs' + str(
@@ -57,5 +58,5 @@ with tf.name_scope('config'):
     # config.gpu_options.per_process_gpu_memory_fraction = 0.4
     sess_config = config
 
-regularizer = tf.contrib.layers.l2_regularizer(0.05)
-custom_loss=.0
+regularizer = None  #tf.contrib.layers.l2_regularizer(0.05)
+custom_loss = .0
