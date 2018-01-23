@@ -417,8 +417,8 @@ with tf.name_scope('loss'):
     reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
     global custom_loss
-    cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
-        reg_losses) + tf.reduce_min(custom_loss)
+    cross_entropy = tf.reduce_mean(cross_entropy) 
+    #+ tf.reduce_mean(reg_losses) + tf.reduce_min(custom_loss)
 
 with tf.name_scope('adam_optimizer'):
     rate = tf.placeholder(tf.float32)
