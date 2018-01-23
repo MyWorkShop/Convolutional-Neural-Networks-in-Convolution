@@ -152,6 +152,8 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
 
         variance_cal_scnn = []
         mse_scnn = 0
+        variance_cal_indv = []
+        mse_indv = []
         output = None
 
         for es in range(e_size):
@@ -164,6 +166,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                     phase_train,
                     name='scn' + str(es))
                 o = tf.reshape(o, [m * n, -1, num_conv])
+                variance_cal_indv.append(o)
                 o = tf.reduce_mean(o, 0)
                 variance_cal_scnn.append(o)
                 if output == None:
@@ -176,15 +179,38 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                 pass
         print('[ensemble_reshaped_output_all]: {}'.format(output))
 
+        es = 0
+        for os in variance_cal_indv:
+            #TODO
+            os = tf.transpose(os, [1, 0, 2])  #[m*n,bs,10]=>[bs,m*n,10]
+            os = tf.unstack(os, axis=1)
+            mse_indv.append(0)
+            for o in os:
+                for o_ in os:
+                    mse_indv[es] += tf.losses.mean_squared_error(o, o_)
+                    pass
+                pass
+            values_to_log.append(
+                tf.summary.scalar("mse_indv" + str(es), mse_indv[es]))
+            es += 1
+            pass
+        global custom_loss
+        mse_indv_total = 0
+        for m in mse_indv:
+            mse_indv_total += m
+        values_to_log.append(
+            tf.summary.scalar("mse_indv_total", mse_indv_total))
+        # custom_loss += mse_scnn_total * 0.01
+
         for o in variance_cal_scnn:
             for o_ in variance_cal_scnn:
-                # TODO: Add variance cal
-                mse_scnn += tf.losses.mean_squared_error(o, o_)
+                mse_scnn -= tf.losses.mean_squared_error(o, o_)
                 pass
             values_to_log.append(
                 tf.summary.image(o.name, tf.reshape(o, [-1, 2, 5, 1])))
             pass
-        custom_loss+=mse_scnn*0.01
+        global custom_loss
+        custom_loss -= mse_scnn * 0.01
         values_to_log.append(tf.summary.scalar("mse_scnn", mse_scnn))
 
         return output, phase_train
@@ -394,6 +420,7 @@ with tf.name_scope('loss'):
 
     reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
+    global custom_loss
     cross_entropy = tf.reduce_mean(cross_entropy) + tf.reduce_mean(
         reg_losses) + tf.reduce_min(custom_loss)
 

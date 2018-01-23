@@ -87,8 +87,10 @@ def main(_):
             if i % 600 == 0:
                 if i == 30000:
                     rt = 3e-4
+                    print('new rt: {}'.format(rt))
                 if i == 42000:
                     rt = 1e-4
+                    print('new rt: {}'.format(rt))
                 # Print the accuracy
                 validation_accuracy = 0
                 validation_loss = 0
