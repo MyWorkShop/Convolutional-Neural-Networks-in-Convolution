@@ -204,7 +204,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
 
         for o in variance_cal_scnn:
             for o_ in variance_cal_scnn:
-                mse_scnn -= tf.losses.mean_squared_error(o, o_)
+                mse_scnn += tf.losses.mean_squared_error(o, o_)
                 pass
             values_to_log.append(
                 tf.summary.image(o.name, tf.reshape(o, [-1, 2, 5, 1])))

@@ -36,7 +36,7 @@ tol = 0.2
 t_max = 30
 dry_run = True
 
-e_size = 2  # Ensemble size
+e_size = 6  # Ensemble size
 run_description = 'bn_swish_conv2_fc256_128_dp3_0.5_bs' + str(
     bs) + '_lr_' + str(rt) + 'normal' + str(e_size)
 graph_location = '/tmp/saved_models/' + run_description  #+ str(time.time())
@@ -58,4 +58,4 @@ with tf.name_scope('config'):
     sess_config = config
 
 regularizer = tf.contrib.layers.l2_regularizer(0.05)
-custom_loss=0
+custom_loss=.0
