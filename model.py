@@ -200,7 +200,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
             mse_indv_total += m
         values_to_log.append(
             tf.summary.scalar("mse_indv_total", mse_indv_total))
-        # custom_loss += mse_scnn_total * 0.01
+        # custom_loss -= mse_scnn_total * 0.01
 
         for o in variance_cal_scnn:
             for o_ in variance_cal_scnn:
@@ -210,7 +210,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                 tf.summary.image(o.name, tf.reshape(o, [-1, 2, 5, 1])))
             pass
         global custom_loss
-        custom_loss -= mse_scnn * 0.01
+        # custom_loss -= mse_scnn * 0.01
         values_to_log.append(tf.summary.scalar("mse_scnn", mse_scnn))
 
         return output, phase_train
