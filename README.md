@@ -2,7 +2,7 @@
 
 ![Bless](https://cdn.rawgit.com/LunaGao/BlessYourCodeTag/master/tags/ramen.svg)
 
-![CNNIC](./cnnic.bmp)
+![CNNIC](./cnnic.png)
 
 CNNis one of the classical architectures that reaches a decent performance on object recognition and deep CNNs have been taken as conventional architectures approaching state of art performance in object recognition tasks.
 The depth of CNN, usually the numbers of convolutional layers in a network are directly related to its performance.
