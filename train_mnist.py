@@ -28,33 +28,33 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
             [5,
              5,
              x.get_shape().as_list()[3],
-             32])
-        b_conv1 = bias_variable([32])
-        h_conv1 = tf.nn.dropout(activation(conv2d(x, W_conv1) + b_conv1), keep_prob)
+             16])
+        b_conv1 = bias_variable([16])
+        h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
         summary_layer(W_conv1, b_conv1)
         summary_output(h_conv1)
 
     with tf.variable_scope('conv2', reuse=reuse):
-        W_conv2 = weight_variable([5, 5, 32, 64])
-        b_conv2 = bias_variable([64])
-        h_conv2 = activation(conv2d(h_conv1, W_conv2) + b_conv2)
+        W_conv2 = weight_variable([5, 5, 16, 32])
+        b_conv2 = bias_variable([32])
+        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
         summary_layer(W_conv2, b_conv2)
         summary_output(h_conv2)
-        h_pool1 = tf.nn.dropout(avg_pool(h_conv2, 2, 2), keep_prob)
+        h_pool2 = tf.nn.dropout(avg_pool(h_conv2, 2, 2), keep_prob)
 
     with tf.variable_scope('conv3', reuse=reuse):
-        W_conv3 = weight_variable([5, 5, 64, 64])
-        b_conv3 = bias_variable([64])
-        h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
+        W_conv3 = weight_variable([5, 5, 32, 32])
+        b_conv3 = bias_variable([32])
+        h_conv3 = activation(conv2d(h_pool2, W_conv3) + b_conv3)
         summary_layer(W_conv3, b_conv3)
         summary_output(h_conv3)
 
     with tf.variable_scope('pool2'):
         h_pool2 = tf.nn.dropout(avg_pool(h_conv3, 2, 2), keep_prob)
-        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 32 * 16])
 
     with tf.variable_scope('fc1', reuse=False):
-        W_fc1 = weight_variable([64 * 16, 1024])
+        W_fc1 = weight_variable([32 * 16, 1024])
         b_fc1 = bias_variable([1024])
         h_fc1 = activation(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
@@ -171,9 +171,9 @@ def scscn(x, num, num_conv):
         slicing.close().mark_used()
     with tf.name_scope('samll_cnn'):
         scn = small_cnn(scn_input, num_conv, keep_prob)
-        scn = tf.reshape(scn, [m * n, -1, num_conv])
-        draw = tf.transpose(scn, [1, 2, 0])
-        draw = tf.reshape(draw, [-1, m, n, 1])
+        scn = tf.reshape(scn, [m, n, -1, num_conv])
+        scn = tf.transpose(scn, [2, 3, 0, 1])
+        draw = tf.reshape(scn, [-1, m, n, 1])
         summary_output(draw)
     # with tf.name_scope('depthwiseconv'):
     #     x_dwc = tf.transpose(scn, [0, 2, 3, 1])
@@ -182,19 +182,18 @@ def scscn(x, num, num_conv):
     # with tf.name_scope('output'):
     #     output = tf.reshape(h_dwc, [-1, num_conv])
     with tf.name_scope('output'):
-        output = tf.reduce_mean(scn, 0)
+        output = tf.reduce_mean(scn, [2, 3])
 
     return output, keep_prob
 
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(
-        shape, stddev=0.05)  # <=works better if orthonormal...
+    initial = tf.truncated_normal(shape, stddev=0.05)
     return tf.Variable(initial)
 
 
 def bias_variable(shape):
-    initial = tf.constant(0.01, shape=shape)
+    initial = tf.constant(0.1, shape=shape)
     return tf.Variable(initial)
 
 
@@ -219,7 +218,7 @@ def main(_):
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
         train_step = tf.train.AdamOptimizer(
-            rate).minimize(cross_entropy)# here is the wrong delete the tf.sqrt
+            rate).minimize(tf.sqrt(cross_entropy))
 
     with tf.name_scope('accuracy'):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
@@ -233,7 +232,7 @@ def main(_):
     with tf.name_scope('tensorboard'):
         graph_location = './log/' + str(datetime.datetime.now())
         test_location = './log_test/' + str(datetime.datetime.now())
-        print('Saving log to: %s' % graph_location)
+        print('Saving graph to: %s' % graph_location)
         train_writer = tf.summary.FileWriter(graph_location)
         test_writer = tf.summary.FileWriter(test_location)
         train_writer.add_graph(tf.get_default_graph())
@@ -247,6 +246,7 @@ def main(_):
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
         rt = 1e-3
+        train_loss = 0
         for i in range(60001):
             # Get the data of next batch
             batch = mnist.train.next_batch(100)
@@ -255,10 +255,6 @@ def main(_):
                     rt = 3e-4
                 if i == 42000:
                     rt = 1e-4
-                if i == 51000:
-                    rt = 3e-5
-                if i == 57000:
-                    rt = 1e-5
                 # Print the accuracy
                 test_accuracy = 0
                 test_accuracy_once = 0
@@ -276,12 +272,16 @@ def main(_):
                     tag="accuracy", simple_value=test_accuracy / 200)
                 test_writer.add_summary(test_summary, i / 600)
                 t0 = time.clock()
+                train_loss = 0
             # Train
-            summary, _ = sess.run([merged, train_step],
+            train_loss_once, summary, _ = sess.run(
+                [cross_entropy, merged, train_step],
                                                    feed_dict={x: batch[0],
                                                               y_: batch[1],
                                                               keep_prob: 0.5,
                                                               rate: rt})
+            train_loss += train_loss_once
+            train_loss_once = 0
             train_writer.add_summary(summary, i)
 
 if __name__ == '__main__':
