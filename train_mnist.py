@@ -28,33 +28,33 @@ def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
             [5,
              5,
              x.get_shape().as_list()[3],
-             16])
-        b_conv1 = bias_variable([16])
+             64])
+        b_conv1 = bias_variable([64])
         h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
         summary_layer(W_conv1, b_conv1)
         summary_output(h_conv1)
 
-    with tf.variable_scope('conv2', reuse=reuse):
-        W_conv2 = weight_variable([5, 5, 16, 32])
-        b_conv2 = bias_variable([32])
-        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-        summary_layer(W_conv2, b_conv2)
-        summary_output(h_conv2)
-        h_pool2 = tf.nn.dropout(avg_pool(h_conv2, 2, 2), keep_prob)
+    # with tf.variable_scope('conv2', reuse=reuse):
+    #     W_conv2 = weight_variable([5, 5, 32, 64])
+    #     b_conv2 = bias_variable([64])
+    #     h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+    #     summary_layer(W_conv2, b_conv2)
+    #     summary_output(h_conv2)
+        h_pool2 = tf.nn.dropout(avg_pool(h_conv1, 2, 2), keep_prob)
 
     with tf.variable_scope('conv3', reuse=reuse):
-        W_conv3 = weight_variable([5, 5, 32, 32])
-        b_conv3 = bias_variable([32])
+        W_conv3 = weight_variable([5, 5, 64, 64])
+        b_conv3 = bias_variable([64])
         h_conv3 = activation(conv2d(h_pool2, W_conv3) + b_conv3)
         summary_layer(W_conv3, b_conv3)
         summary_output(h_conv3)
 
     with tf.variable_scope('pool2'):
         h_pool2 = tf.nn.dropout(avg_pool(h_conv3, 2, 2), keep_prob)
-        h_pool2_flat = tf.reshape(h_pool2, [-1, 32 * 16])
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
     with tf.variable_scope('fc1', reuse=False):
-        W_fc1 = weight_variable([32 * 16, 1024])
+        W_fc1 = weight_variable([64 * 16, 1024])
         b_fc1 = bias_variable([1024])
         h_fc1 = activation(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
         h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
@@ -127,7 +127,7 @@ def scscn(x, num, num_conv):
 
     with tf.name_scope('strides'):
         # Strides:
-        stride = 3
+        stride = 4
 
     with tf.name_scope('pad'):
         # pad of input
@@ -218,7 +218,7 @@ def main(_):
     with tf.name_scope('adam_optimizer'):
         rate = tf.placeholder(tf.float32)
         train_step = tf.train.AdamOptimizer(
-            rate).minimize(tf.sqrt(cross_entropy))
+            rate).minimize(cross_entropy)
 
     with tf.name_scope('accuracy'):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
@@ -255,6 +255,10 @@ def main(_):
                     rt = 3e-4
                 if i == 42000:
                     rt = 1e-4
+                if i == 48000:
+                    rt = 3e-5
+                if i == 54000:
+                    rt = 1e-5
                 # Print the accuracy
                 test_accuracy = 0
                 test_accuracy_once = 0
