@@ -4,56 +4,66 @@ from __future__ import print_function
 
 import argparse
 import sys
-import tempfile
 import time
 import datetime
 
 from tensorflow.examples.tutorials.mnist import input_data
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.training import moving_averages
 
 import tensorflow as tf
 
 FLAGS = None
 
 # Small CNN:
-# convolution fliter of SCSCN
+# convolution fliter of cnnic
 
 
-def small_cnn(x, num_conv, keep_prob, id=0, j=0, k=0, reuse=False):
-    swish = lambda x: (x * tf.nn.sigmoid(x))
+def small_cnn(x, num_conv, keep_prob, reuse=False):
+    """
+    Small convolutional neural networks.
+
+    Args:
+
+        x:           Tensor, 4D BHWD input maps
+        num_conv:    int, number of output classes
+        keep_prob:   double, probability of keeping the output in dropout
+        reuse:       boolean, if the variable in small_cnn should be reused
+
+    Return:
+
+        h_fc:        Tensor, output maps
+    """
     activation = tf.nn.relu  # Activation Func to use
     with tf.variable_scope('conv1', reuse=reuse):
         W_conv1 = weight_variable(
             [5,
              5,
              x.get_shape().as_list()[3],
-             64])
-        b_conv1 = bias_variable([64])
+             32])
+        b_conv1 = bias_variable([32])
         h_conv1 = activation(conv2d(x, W_conv1) + b_conv1)
         summary_layer(W_conv1, b_conv1)
         summary_output(h_conv1)
 
-    # with tf.variable_scope('conv2', reuse=reuse):
-    #     W_conv2 = weight_variable([5, 5, 32, 64])
-    #     b_conv2 = bias_variable([64])
-    #     h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
-    #     summary_layer(W_conv2, b_conv2)
-    #     summary_output(h_conv2)
-        h_pool2 = tf.nn.dropout(avg_pool(h_conv1, 2, 2), keep_prob)
+    with tf.variable_scope('conv2', reuse=reuse):
+        W_conv2 = weight_variable([5, 5, 32, 64])
+        b_conv2 = bias_variable([64])
+        h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2) + b_conv2)
+        summary_layer(W_conv2, b_conv2)
+        summary_output(h_conv2)
+        h_pool1 = tf.nn.dropout(avg_pool(h_conv2, 2, 2), keep_prob)
 
     with tf.variable_scope('conv3', reuse=reuse):
         W_conv3 = weight_variable([5, 5, 64, 64])
         b_conv3 = bias_variable([64])
-        h_conv3 = activation(conv2d(h_pool2, W_conv3) + b_conv3)
+        h_conv3 = activation(conv2d(h_pool1, W_conv3) + b_conv3)
         summary_layer(W_conv3, b_conv3)
         summary_output(h_conv3)
 
-    with tf.variable_scope('pool2'):
+    with tf.variable_scope('pool2', reuse=reuse):
         h_pool2 = tf.nn.dropout(avg_pool(h_conv3, 2, 2), keep_prob)
         h_pool2_flat = tf.reshape(h_pool2, [-1, 64 * 16])
 
-    with tf.variable_scope('fc1', reuse=False):
+    with tf.variable_scope('fc1', reuse=reuse):
         W_fc1 = weight_variable([64 * 16, 1024])
         b_fc1 = bias_variable([1024])
         h_fc1 = activation(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
@@ -119,7 +129,21 @@ def max_pool(x, m, n):
                           strides=[1, m, n, 1], padding='SAME')
 
 
-def scscn(x, num, num_conv):
+def cnnic(x, num, num_conv):
+    """
+    Convolution of small convolutional neural networks.
+
+    Args:
+
+        x:           Tensor, 4D BHWD input maps
+        num:         int, number of output classes
+        num_conv:    int, number of output classes
+
+    Return:
+
+        output:      Tensor, output maps
+        keep_prob:   double, probability of keeping the output in dropout
+    """
     with tf.name_scope('kernal_size'):
         # Kernal size:
         a = 16
@@ -143,7 +167,7 @@ def scscn(x, num, num_conv):
         input_num = x.get_shape().as_list()[3]
         input_m = x.get_shape().as_list()[1]
         input_n = x.get_shape().as_list()[2]
-        print('[input|SCSCN]num %d,m %d,n %d' % (input_num, input_m, input_n))
+        print('[input|cnnic]num %d,m %d,n %d' % (input_num, input_m, input_n))
 
     with tf.name_scope('size'):
         # Size:
@@ -153,7 +177,7 @@ def scscn(x, num, num_conv):
     with tf.name_scope('output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        slicing = tf.TensorArray('float32', num * m * n)
+        slicing = tf.TensorArray('float32', num * m * n + 1)
 
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
@@ -167,13 +191,17 @@ def scscn(x, num, num_conv):
             slicing = slicing.write(
                 h, tf.slice(x, [0, j * stride, k * stride, 0],
                             [-1, a, b, -1]))
+        # Extra input:
+        slicing = slicing.write(
+            num * m * n, tf.image.resize_images(x, [16, 16]))
         scn_input = slicing.concat()
         slicing.close().mark_used()
     with tf.name_scope('samll_cnn'):
         scn = small_cnn(scn_input, num_conv, keep_prob)
-        scn = tf.reshape(scn, [m, n, -1, num_conv])
-        scn = tf.transpose(scn, [2, 3, 0, 1])
-        draw = tf.reshape(scn, [-1, m, n, 1])
+        scn = tf.reshape(scn, [m * n + 1, -1, num_conv])
+        scn_original, scn_extra = tf.split(scn, [m * n, 1], 0)
+        scn_original = tf.transpose(scn_original, [1, 2, 0])
+        draw = tf.reshape(scn_original, [-1, m, n, 1])
         summary_output(draw)
     # with tf.name_scope('depthwiseconv'):
     #     x_dwc = tf.transpose(scn, [0, 2, 3, 1])
@@ -182,14 +210,18 @@ def scscn(x, num, num_conv):
     # with tf.name_scope('output'):
     #     output = tf.reshape(h_dwc, [-1, num_conv])
     with tf.name_scope('output'):
-        output = tf.reduce_mean(scn, [2, 3])
+        beta = tf.Variable(
+            tf.constant(0.1, shape=[1]), name='beta', trainable=True)
+        output = tf.reduce_mean(scn_original, 2) + beta * tf.squeeze(scn_extra)
+        tf.summary.scalar('beta', tf.reduce_mean(beta))
+        # output = tf.reduce_mean(scn, [2, 3]) + 0.2 * extra_cnn(x, num_conv,
+        # keep_prob)
 
     return output, keep_prob
 
 
 def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.05)
-    return tf.Variable(initial)
+    return tf.get_variable('weight', shape, initializer=tf.orthogonal_initializer())
 
 
 def bias_variable(shape):
@@ -208,7 +240,7 @@ def main(_):
     y_ = tf.placeholder(tf.float32, [None, 10])
 
     # The main model
-    y_conv, keep_prob = scscn(x, 1, 10)
+    y_conv, keep_prob = cnnic(x, 1, 10)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_,
@@ -266,7 +298,7 @@ def main(_):
                     accuracy_batch = mnist.test.next_batch(50)
                     summary, test_accuracy_once = sess.run([merged, accuracy], feed_dict={
                         x: accuracy_batch[0],
-                            y_: accuracy_batch[1], keep_prob: 1.0})
+                        y_: accuracy_batch[1], keep_prob: 1.0})
                     test_accuracy += test_accuracy_once
                     test_accuracy_once = 0
                 print('%g, %g, %g' %
@@ -280,10 +312,10 @@ def main(_):
             # Train
             train_loss_once, summary, _ = sess.run(
                 [cross_entropy, merged, train_step],
-                                                   feed_dict={x: batch[0],
-                                                              y_: batch[1],
-                                                              keep_prob: 0.5,
-                                                              rate: rt})
+                feed_dict={x: batch[0],
+                           y_: batch[1],
+                           keep_prob: 0.5,
+                           rate: rt})
             train_loss += train_loss_once
             train_loss_once = 0
             train_writer.add_summary(summary, i)
