@@ -46,42 +46,30 @@ def small_cnn(x,
             scope_name=1,
             use_lsuv=use_lsuv)
 
+        x = tf.nn.dropout(x, keep_prob)
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
-        x = tf.nn.dropout(x, keep_prob * 1.7)
         print('[small_cnn] pool1== {}'.format(x))
 
         x = conv2d(
             inputs=x,
-            filters=64,
+            filters=32,
             kernel_size=[5, 5],
             padding="same",
             activation=activation,
             scope_name=2,
             strides=[1, 1],
             use_lsuv=use_lsuv)
-        x = conv2d(
-            inputs=x,
-            filters=64,
-            kernel_size=[5, 5],
-            padding="same",
-            activation=activation,
-            scope_name=3,
-            strides=[1, 1],
-            use_lsuv=use_lsuv)
-
+        x = tf.nn.dropout(x, keep_prob)
         x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=[2, 2])
         print('[small_cnn] pool2== {}'.format(x))
 
         x = tf.reshape(
             x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
 
+        x = dense(x, 512, 1, activation=activation, use_lsuv=use_lsuv)
         x = tf.nn.dropout(x, keep_prob)
-        x = dense(x, 1024, 1, activation=activation, use_lsuv=use_lsuv)
-        x = tf.nn.dropout(x, keep_prob)
-        # x = dense(x, 128, 2, activation=activation, use_lsuv=use_lsuv)
-        # x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 10, 3, activation=activation, use_lsuv=use_lsuv)
+        x = dense(x, 10, 2, activation=activation, use_lsuv=use_lsuv)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
@@ -345,7 +333,8 @@ def dense(x,
           use_lsuv=False,
           activation=tf.nn.relu,
           reuse=False):
-    with tf.variable_scope('fc' + str(scope_name), reuse=reuse,regularizer=regularizer):
+    with tf.variable_scope(
+            'fc' + str(scope_name), reuse=reuse, regularizer=regularizer):
         global custom_loss
         w = weight_variable_([x.get_shape()[1], num], id, 0, 0)
         b = bias_variable_([num], id, 0, 0)
@@ -417,7 +406,7 @@ with tf.name_scope('loss'):
     reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
     global custom_loss
-    cross_entropy = tf.reduce_mean(cross_entropy) 
+    cross_entropy = tf.reduce_mean(cross_entropy)
     #+ tf.reduce_mean(reg_losses) + tf.reduce_min(custom_loss)
 
 with tf.name_scope('adam_optimizer'):
