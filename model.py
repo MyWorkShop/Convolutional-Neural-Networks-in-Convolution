@@ -15,9 +15,8 @@ import tensorflow as tf
 from configs import *
 
 
-# num_conv=10,x=[bs,16,16,chan*m*n]
+# x=[bs,16,16,chan*m*n]
 def small_cnn(x,
-              num_conv,
               keep_prob,
               phase_train,
               id=0,
@@ -150,23 +149,22 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         mse_indv = []
         output = None
 
-        scn_inputs = tf.unstack(scn_inputs, m * n, 3)
+        # scn_inputs = tf.unstack(scn_inputs, m * n, 3)
         for es in range(e_size):
             with tf.variable_scope('scn' + str(es)):
                 print('es{}--------------------------'.format(es))
-                for scn_input in scn_inputs:
-                    scn_input = tf.expand_dims(scn_input, 3)
-                    o = small_cnn(
-                        scn_input,
-                        num_conv,
-                        keep_prob,
-                        phase_train,
-                        name='scn' + str(es),
-                        reuse=tf.AUTO_REUSE)
-                    if output == None:
-                        output = o
-                    else:
-                        output += o
+                # for scn_input in scn_inputs:
+                    # scn_input = tf.expand_dims(scn_input, 3)
+                o = small_cnn(
+                    scn_inputs,
+                    keep_prob,
+                    phase_train,
+                    name='scn' + str(es),
+                    reuse=False)
+                if output == None:
+                    output = o
+                else:
+                    output += o
                 print('[ensemble_reshaped_output{}]: {}'.format(
                     es + 1, output))
                 print('es{}--------------------------'.format(es))
@@ -208,7 +206,6 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         # custom_loss -= mse_scnn * 0.01
         values_to_log.append(tf.summary.scalar("mse_scnn", mse_scnn))
         '''
-
         return output, phase_train
 
 
