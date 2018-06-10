@@ -15,8 +15,9 @@ import tensorflow as tf
 from configs import *
 
 
-# num_conv=10,x=[?,16,16,1]
+# num_conv=10,x=[bs,16,16,chan*m*n]
 def small_cnn(x,
+              recurrent,
               num_conv,
               keep_prob,
               phase_train,
@@ -65,15 +66,17 @@ def small_cnn(x,
 
         x = tf.reshape(
             x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
+        x = tf.concat([x, recurrent], 1)
 
         x = dense(x, 512, 1, activation=activation, use_lsuv=use_lsuv)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 10, 2, activation=activation, use_lsuv=use_lsuv)
+        x = dense(x, 10 + rec_len, 2, activation=activation, use_lsuv=use_lsuv)
+        x, recurrent = tf.split(x, [10, rec_len], 1)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
-    return x
+    return x, recurrent
 
 
 # x=>[bs,784]
@@ -116,12 +119,12 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
     with tf.name_scope('output'):
         # Output:
         # a TensorArray of tensor used to storage the output of small_cnn
-        slicing = tf.TensorArray('float32', num * m * n)
+        slicing = tf.TensorArray('float32', num * m * n)  # 1*4*4
 
     # with tf.name_scope('dropout'):
 
     with tf.name_scope('fliter'):
-        for h in range(num * m * n):
+        for h in range(num * m * n):  # For each small section
             i = int(h / (m * n))
             l = int(h % (m * n))
             j = int(l / n)
@@ -134,8 +137,14 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                                     tf.slice(x, [0, j * stride, k * stride, 0],
                                              [-1, a, b, -1]))
     with tf.name_scope('scn_ensemble'):
-        scn_input = slicing.concat()
-        print('[slicing]: {}'.format(scn_input))
+        scn_inputs = slicing.concat()
+        print('[concat]: {}'.format(scn_inputs))
+        scn_inputs = tf.reshape(scn_inputs, [m * n, -1, a * b])
+        print('{}'.format(scn_inputs))
+        scn_inputs = tf.transpose(scn_inputs, [1, 2, 0])
+        print('{}'.format(scn_inputs))
+        scn_inputs = tf.reshape(scn_inputs, [-1, a, b, m * n])
+        print('[sliced]: {}'.format(scn_inputs))
         slicing.close().mark_used()
 
         variance_cal_scnn = []
@@ -144,29 +153,37 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         mse_indv = []
         output = None
 
+        recurrent = weight_variable([bs, 5])
         for es in range(e_size):
             with tf.variable_scope('scn' + str(es)):
                 print('es{}--------------------------'.format(es))
-                o = small_cnn(
-                    scn_input,
-                    num_conv,
-                    keep_prob,
-                    phase_train,
-                    name='scn' + str(es))
-                o = tf.reshape(o, [m * n, -1, num_conv])
-                variance_cal_indv.append(o)
-                o = tf.reduce_mean(o, 0)
-                variance_cal_scnn.append(o)
-                if output == None:
-                    output = o
-                else:
-                    output += o
+                scn_inputs = tf.unstack(scn_inputs, m * n, 3)
+                for scn_input in scn_inputs:
+                    scn_input = tf.expand_dims(scn_input, 3)
+                    o, recurrent = small_cnn(
+                        scn_input,
+                        recurrent,
+                        num_conv,
+                        keep_prob,
+                        phase_train,
+                        name='scn' + str(es),
+                        reuse=tf.AUTO_REUSE)
+                    if output == None:
+                        output = o
+                    else:
+                        output += o
+                # o = tf.reshape(
+                # o,
+                # [m * n, -1, num_conv])  # [convolution per picture, bs, 10]
+                # variance_cal_indv.append(o)
+                # o = tf.reduce_mean(o, 0)
+                # variance_cal_scnn.append(o)
                 print('[ensemble_reshaped_output{}]: {}'.format(
                     es + 1, output))
                 print('es{}--------------------------'.format(es))
                 pass
         print('[ensemble_reshaped_output_all]: {}'.format(output))
-
+        ''' Variance Calculation Disabled
         es = 0
         for os in variance_cal_indv:
             #TODO
@@ -182,6 +199,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                 tf.summary.scalar("mse_indv" + str(es), mse_indv[es]))
             es += 1
             pass
+
         global custom_loss
         mse_indv_total = 0
         for m in mse_indv:
@@ -200,6 +218,7 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         global custom_loss
         # custom_loss -= mse_scnn * 0.01
         values_to_log.append(tf.summary.scalar("mse_scnn", mse_scnn))
+        '''
 
         return output, phase_train
 

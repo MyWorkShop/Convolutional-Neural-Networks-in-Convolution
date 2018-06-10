@@ -166,7 +166,7 @@ def main(_):
                 feed_dict={
                     x: batch[0],
                     y_: batch[1],
-                    keep_prob: 1,#TODO
+                    keep_prob: 1,  #TODO
                     rate: rt,
                     phase_train: False
                 })
