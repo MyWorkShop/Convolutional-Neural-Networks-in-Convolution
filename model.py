@@ -17,7 +17,6 @@ from configs import *
 
 # num_conv=10,x=[bs,16,16,chan*m*n]
 def small_cnn(x,
-              recurrent,
               num_conv,
               keep_prob,
               phase_train,
@@ -66,17 +65,15 @@ def small_cnn(x,
 
         x = tf.reshape(
             x, [-1, x.get_shape()[1] * x.get_shape()[2] * x.get_shape()[3]])
-        x = tf.concat([x, recurrent], 1)
 
         x = dense(x, 512, 1, activation=activation, use_lsuv=use_lsuv)
         x = tf.nn.dropout(x, keep_prob)
 
-        x = dense(x, 10 + rec_len, 2, activation=activation, use_lsuv=use_lsuv)
-        x, recurrent = tf.split(x, [10, rec_len], 1)
+        x = dense(x, 10, 2, activation=activation, use_lsuv=use_lsuv)
         pass
 
     print('[small_cnn] output <= {}'.format(x))
-    return x, recurrent
+    return x
 
 
 # x=>[bs,784]
@@ -153,16 +150,14 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         mse_indv = []
         output = None
 
-        recurrent = weight_variable([bs, 5])
+        scn_inputs = tf.unstack(scn_inputs, m * n, 3)
         for es in range(e_size):
             with tf.variable_scope('scn' + str(es)):
                 print('es{}--------------------------'.format(es))
-                scn_inputs = tf.unstack(scn_inputs, m * n, 3)
                 for scn_input in scn_inputs:
                     scn_input = tf.expand_dims(scn_input, 3)
-                    o, recurrent = small_cnn(
+                    o = small_cnn(
                         scn_input,
-                        recurrent,
                         num_conv,
                         keep_prob,
                         phase_train,
@@ -172,12 +167,6 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
                         output = o
                     else:
                         output += o
-                # o = tf.reshape(
-                # o,
-                # [m * n, -1, num_conv])  # [convolution per picture, bs, 10]
-                # variance_cal_indv.append(o)
-                # o = tf.reduce_mean(o, 0)
-                # variance_cal_scnn.append(o)
                 print('[ensemble_reshaped_output{}]: {}'.format(
                     es + 1, output))
                 print('es{}--------------------------'.format(es))
