@@ -1,5 +1,2 @@
-MNIST_data/
+MNIST-data/
 .vscode/
-.idea/
-log_test/
-log/
