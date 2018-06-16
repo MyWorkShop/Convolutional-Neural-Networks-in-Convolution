@@ -6,79 +6,90 @@ from __future__ import print_function
 import tensorflow as tf
 import time
 
-def small_cnn(x, phase_train):
-    # Convolutional Layer #1
+# Deopout rate
+RATE_DROPOUT = 0.5
+
+#Fully convolution networks
+def fcn(x, phase_train):
+    # Convolutional layer #1
     conv1 = tf.layers.conv2d(
         inputs=x,
         filters=32,
         kernel_size=[5, 5],
-        padding="same",
+        padding="valid",
         activation=tf.nn.relu)
+    conv1_dropout = tf.layers.dropout(inputs=conv1,
+                rate=RATE_DROPOUT, training=phase_train)
 
-    # Convolutional Layer #2
+    # Convolutional layer #2
     conv2 = tf.layers.conv2d(
-        inputs=conv1,
+        inputs=conv1_dropout,
         filters=32,
         kernel_size=[5, 5],
-        padding="same",
+        padding="valid",
         activation=tf.nn.relu)
+    return conv2
 
-    # Pooling Layer #1
-    pool1 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-
-    # Convolutional Layer #3 and Pooling Layer #2
-    conv3 = tf.layers.conv2d(
-        inputs=pool1,
-        filters=32,
-        kernel_size=[3, 3],
-        padding="same",
-        activation=tf.nn.relu)
-    conv4 = tf.layers.conv2d(
-        inputs=conv3,
-        filters=32,
-        kernel_size=[3, 3],
-        padding="same",
-        activation=tf.nn.relu)
-    pool2 = tf.layers.max_pooling2d(inputs=conv4, pool_size=[2, 2], strides=2)
-
-    # Dense Layer
-    pool2_flat = tf.reshape(pool2, [-1, 4 * 4 * 32])
-    dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=phase_train)
-
-    # Logits Layer
-    logits = tf.layers.dense(inputs=dropout, units=10)
-
-    return tf.layers.dropout(inputs=logits, rate=0.4, training=phase_train)
-
-def cnnic(x):
+def model(x):
+    #If training
     phase_train = tf.placeholder(tf.bool)
-    m = 5
-    n = 5
-    stride = 3
-
     x = tf.reshape(x, [-1, 28, 28, 1])
 
-    #Input of CNNIC
+    #CNNIC layer #1
+    with tf.variable_scope("cnnic_1"):
+        layer1_wrap = wrap(x, 5, 5, 3, [-1, 16, 16, 1])
+        layer1_unwrap = fcn(layer1_wrap, phase_train)
+        layer1_output = unwrap(layer1_unwrap, 5, 5, 5, [-1, 8, 8, 32])
+
+    #CNNIC layer #2
+    with tf.variable_scope("cnnic_2"):
+        layer2_wrap = wrap(layer1_output, 5, 5, 3, [-1, 16, 16, 32])
+        layer2_unwrap = fcn(layer2_wrap, phase_train)
+        layer2_output = unwrap(layer2_unwrap, 5, 5, 5, [-1, 8, 8, 32])
+
+    #CNNIC layer #3
+    with tf.variable_scope("cnnic_3"):
+        layer3_wrap = wrap(layer2_output, 4, 4, 4, [-1, 16, 16, 32])
+        layer3_unwrap = fcn(layer3_wrap, phase_train)
+        layer3_output = unwrap(layer3_unwrap, 4, 4, 2, [-1, 8, 8, 32])
+
+    #Pooling layer
+    pool = tf.layers.max_pooling2d(inputs=layer3_output, pool_size=[2, 2], strides=2)
+
+    # Dense layer
+    pool_flat = tf.reshape(pool, [-1, 7 * 7 * 32])
+    dense = tf.layers.dense(inputs=pool_flat, units=1024, activation=tf.nn.relu)
+    dropout = tf.layers.dropout(inputs=dense, rate=RATE_DROPOUT, training=phase_train)
+
+    # Logits layer
+    logits = tf.layers.dense(inputs=dropout, units=10)
+
+    return logits, phase_train
+
+def wrap(x, m, n, stride, shape):
     slicing = tf.TensorArray('float32', m * n)
     for j in range(m):
         for k in range(n):
             slicing = slicing.write(
                 j * n + k, tf.slice(x, [0, j * stride, k * stride, 0],
-                            [-1, 16, 16, 1]))
-    scn_input = tf.reshape(slicing.concat(), [-1, 16, 16, 1])
+                            shape))
+    sliced = tf.reshape(slicing.concat(), shape)
     slicing.close().mark_used()
-    
-    scn_output = tf.reshape(small_cnn(scn_input, phase_train), [m * n, -1 , 10])
-    test_output = tf.reduce_mean(scn_output, 0)
-    # random = tf.random_uniform([2], 0, 11, tf.int32)
-    # train_output = small_cnn(tf.slice(x, tf.concat([[0], random, [0]], 0),
-    #                         [-1, 16, 16, 1]), phase_train)
+    return sliced
 
-    # return tf.cond(phase_train, lambda:train_output, lambda:test_output), phase_train
-    return test_output, phase_train
-
-
+def unwrap(x, m, n, stride, shape):
+    adding = tf.TensorArray('float32', m * n)
+    to_split = tf.reshape(x, tf.concat([[m * n], shape], 0))
+    split = tf.TensorArray('float32', m * n).unstack(to_split)
+    for j in range(m):
+        for k in range(n):
+            adding = adding.write(j * n + k, tf.pad(split.read(j * n + k), 
+                    [[0, 0], [j * stride, (m - 1 - j) * stride],
+                            [k * stride, (n - 1 - k) * stride], [0, 0]]))
+    split.close().mark_used()
+    added = tf.reduce_sum(adding.stack(), 0)
+    adding.close().mark_used()
+    return added
 
 
 def main(unused_argv):
@@ -86,7 +97,7 @@ def main(unused_argv):
 
     input_data = tf.placeholder(tf.float32, [None, 784])
     output_data = tf.placeholder(tf.int64, [None])
-    y_model, phase_train= cnnic(input_data)
+    y_model, phase_train= model(input_data)
 
     #Loss
     cross_entropy = tf.losses.sparse_softmax_cross_entropy(
