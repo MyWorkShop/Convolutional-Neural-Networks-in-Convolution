@@ -26,31 +26,30 @@ def small_cnn(x, phase_train):
     # Pooling Layer #1
     pool1 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 
-    # Convolutional Layer #3 #4 and Pooling Layer #2
+    # Convolutional Layer #3 and Pooling Layer #2
     conv3 = tf.layers.conv2d(
         inputs=pool1,
-        filters=64,
+        filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
     conv4 = tf.layers.conv2d(
         inputs=conv3,
-        filters=64,
+        filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
     pool2 = tf.layers.max_pooling2d(inputs=conv4, pool_size=[2, 2], strides=2)
 
     # Dense Layer
-    pool2_flat = tf.layers.dropout(inputs=tf.reshape(pool2, [-1, 4 * 4 * 64]),
-                                    rate=0.6, training=phase_train)
+    pool2_flat = tf.reshape(pool2, [-1, 4 * 4 * 32])
     dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(inputs=dense, rate=0.6, training=phase_train)
+    dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=phase_train)
 
     # Logits Layer
     logits = tf.layers.dense(inputs=dropout, units=10)
 
-    return tf.layers.dropout(inputs=logits, rate=0.6, training=phase_train)
+    return tf.layers.dropout(inputs=logits, rate=0.4, training=phase_train)
 
 def cnnic(x):
     phase_train = tf.placeholder(tf.bool)
@@ -72,8 +71,9 @@ def cnnic(x):
     
     scn_output = tf.reshape(small_cnn(scn_input, phase_train), [m * n, -1 , 10])
     test_output = tf.reduce_mean(scn_output, 0)
-    # train_output = small_cnn(tf.random_crop(x, 
-    #       [tf.cond(phase_train, lambda:100, lambda:50), 16, 16, 1]), phase_train)
+    # random = tf.random_uniform([2], 0, 11, tf.int32)
+    # train_output = small_cnn(tf.slice(x, tf.concat([[0], random, [0]], 0),
+    #                         [-1, 16, 16, 1]), phase_train)
 
     # return tf.cond(phase_train, lambda:train_output, lambda:test_output), phase_train
     return test_output, phase_train
