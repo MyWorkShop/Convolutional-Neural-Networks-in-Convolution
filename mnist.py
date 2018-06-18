@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 
 # Deopout rate
-RATE_DROPOUT = 0.5
+RATE_DROPOUT = 0.75
 
 #Fully convolution networks
 def fcn(x, phase_train):
@@ -15,20 +15,20 @@ def fcn(x, phase_train):
     conv1 = tf.layers.conv2d(
         inputs=x,
         filters=32,
-        kernel_size=[5, 5],
+        kernel_size=[3, 3],
         padding="valid",
         activation=tf.nn.relu)
     conv1_dropout = tf.layers.dropout(inputs=conv1,
                 rate=RATE_DROPOUT, training=phase_train)
 
     # Convolutional layer #2
-    conv2 = tf.layers.conv2d(
+    conv2 = tf.layers.conv2d_transpose(
         inputs=conv1_dropout,
         filters=32,
-        kernel_size=[5, 5],
+        kernel_size=[3, 3],
         padding="valid",
         activation=tf.nn.relu)
-    return conv2
+    return tf.layers.dropout(inputs=conv2, rate=RATE_DROPOUT, training=phase_train)
 
 def model(x):
     #If training
@@ -39,22 +39,25 @@ def model(x):
     with tf.variable_scope("cnnic_1"):
         layer1_wrap = wrap(x, 5, 5, 3, [-1, 16, 16, 1])
         layer1_unwrap = fcn(layer1_wrap, phase_train)
-        layer1_output = unwrap(layer1_unwrap, 5, 5, 5, [-1, 8, 8, 32])
+        layer1_output = unwrap(layer1_unwrap, 5, 5, 3, [-1, 16, 16, 32])
 
     #CNNIC layer #2
     with tf.variable_scope("cnnic_2"):
         layer2_wrap = wrap(layer1_output, 5, 5, 3, [-1, 16, 16, 32])
         layer2_unwrap = fcn(layer2_wrap, phase_train)
-        layer2_output = unwrap(layer2_unwrap, 5, 5, 5, [-1, 8, 8, 32])
+        layer2_output = unwrap(layer2_unwrap, 5, 5, 3, [-1, 16, 16, 32])
+
+    #Pooling layer #1
+    pool1 = tf.layers.average_pooling2d(inputs=layer2_output, pool_size=[2, 2], strides=2)
 
     #CNNIC layer #3
     with tf.variable_scope("cnnic_3"):
-        layer3_wrap = wrap(layer2_output, 4, 4, 4, [-1, 16, 16, 32])
+        layer3_wrap = wrap(pool1, 4, 4, 2, [-1, 8, 8, 32])
         layer3_unwrap = fcn(layer3_wrap, phase_train)
         layer3_output = unwrap(layer3_unwrap, 4, 4, 2, [-1, 8, 8, 32])
 
     #Pooling layer
-    pool = tf.layers.max_pooling2d(inputs=layer3_output, pool_size=[2, 2], strides=2)
+    pool = tf.layers.average_pooling2d(inputs=layer3_output, pool_size=[2, 2], strides=2)
 
     # Dense layer
     pool_flat = tf.reshape(pool, [-1, 7 * 7 * 32])
@@ -136,7 +139,8 @@ def main(unused_argv):
                 for index in range(200):
                     accuracy_batch = mnist.test.next_batch(50)
                     test_accuracy_once = sess.run(accuracy, feed_dict={
-                        input_data: accuracy_batch[0], output_data: accuracy_batch[1],
+                        input_data: accuracy_batch[0],
+                        output_data: accuracy_batch[1],
                         phase_train: False})
                     test_accuracy += test_accuracy_once
                     test_accuracy_once = 0
