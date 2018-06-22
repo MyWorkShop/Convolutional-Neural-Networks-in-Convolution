@@ -44,7 +44,7 @@ def small_cnn(x, phase_train):
 
     # Dense Layer
     pool2_flat = tf.reshape(pool2_dropout, [-1, 4 * 4 * 32])
-    dense = tf.layers.dense(inputs=pool2_flat, units=256, activation=tf.nn.relu)
+    dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
     dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=phase_train)
 
     return dropout
@@ -67,14 +67,12 @@ def cnnic(x):
     scn_input = tf.reshape(slicing.concat(), [-1, 16, 16, 1])
     slicing.close().mark_used()
     
-    scn_output = tf.reshape(small_cnn(scn_input, phase_train), [m * n, -1 , 256])
-    scn_output = tf.reshape(tf.transpose(scn_output, [1, 0, 2]), [-1, m, n, 256])
-
-    pool = tf.layers.average_pooling2d(inputs=scn_output, pool_size=[2, 2], strides=1)
-    pool_flat = tf.reshape(pool, [-1, (m - 1) * (n - 1) * 256])
+    scn_output = tf.reshape(small_cnn(scn_input, phase_train), [m * n, -1 , 1024])
+    scn_output = tf.reshape(tf.transpose(scn_output, [1, 0, 2]), [-1, m, n, 1024])
 
     # Logits Layer
-    logits = tf.layers.dense(inputs=pool_flat, units=10)
+    logits = tf.layers.separable_conv2d(scn_output, 10, [m ,n])
+    logits = tf.reshape(logits, [-1, 10])
     return logits, phase_train
 
 
