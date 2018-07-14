@@ -15,42 +15,61 @@ def fcn(x, phase_train):
     conv1 = tf.layers.conv2d(
         inputs=x,
         filters=32,
-        kernel_size=[3, 3],
-        padding="valid",
+        kernel_size=[5, 5],
+        padding="same",
         activation=tf.nn.relu)
     conv1 = tf.layers.dropout(inputs=conv1, rate=RATE_DROPOUT, training=phase_train)
 
     # Convolutional layer #2
     conv2 = tf.layers.conv2d(
+        inputs=conv1,
+        filters=32,
+        kernel_size=[5, 5],
+        padding="same",
+        activation=tf.nn.relu)
+    conv2 = tf.layers.dropout(inputs=conv2, rate=RATE_DROPOUT, training=phase_train)
+
+    # Convolutional layer #2
+    conv3 = tf.layers.conv2d(
+        inputs=conv2,
+        filters=32,
+        kernel_size=[5, 5],
+        padding="same",
+        activation=tf.nn.relu)
+    conv3 = tf.layers.dropout(inputs=conv3, rate=RATE_DROPOUT, training=phase_train)
+
+    # Convolutional layer #3
+    # conv3 = tf.layers.conv2d_transpose(
+    #     inputs=conv2,
+    #     filters=32,
+    #     kernel_size=[5, 5],
+    #     padding="valid",
+    #     activation=tf.nn.relu)
+
+    return tf.layers.dropout(
+            inputs=tf.add(conv1, tf.add(conv2, conv3)),
+            rate=RATE_DROPOUT,
+            training=phase_train)
+
+def small_cnn(x, phase_train):
+    # Convolutional layer
+    conv = tf.layers.conv2d(
         inputs=x,
         filters=32,
         kernel_size=[5, 5],
         padding="valid",
         activation=tf.nn.relu)
-    conv2 = tf.layers.dropout(inputs=conv2, rate=RATE_DROPOUT, training=phase_train)
+    conv = tf.layers.dropout(inputs=conv, rate=RATE_DROPOUT, training=phase_train)
 
-    # Convolutional layer #3
-    conv3 = tf.layers.conv2d_transpose(
-        inputs=conv1,
-        filters=16,
-        kernel_size=[3, 3],
-        padding="valid",
-        activation=tf.nn.relu)
+    # Dense layer
+    conv = tf.reshape(conv, [-1, 4 * 4 * 32])
+    dense = tf.layers.dense(inputs=conv, units=256)
+    dense = tf.layers.dropout(inputs=dense, rate=RATE_DROPOUT, training=phase_train)
 
-    # Convolutional layer #4
-    conv4 = tf.layers.conv2d_transpose(
-        inputs=conv2,
-        filters=16,
-        kernel_size=[5, 5],
-        padding="valid",
-        activation=tf.nn.relu)
+    # Logits layer
+    logits = tf.layers.dense(inputs=dense, units=64)
 
-    # Concat
-    alpha = tf.Variable(0.5)
-    return tf.layers.dropout(
-            inputs=tf.concat([alpha * conv3, (1 - alpha) * conv4], 3),
-            rate=RATE_DROPOUT,
-            training=phase_train)
+    return logits
 
 def model(x):
     #If training
@@ -59,12 +78,12 @@ def model(x):
 
     #CNNIC layer #1
     with tf.variable_scope("cnnic_1"):
-        layer1_wrap = wrap(x, 6, 6, 4, [-1, 8, 8, 1])
+        layer1_wrap = wrap(x, 5, 5, 4, [-1, 12, 12, 1])
         layer1_unwrap = fcn(layer1_wrap, phase_train)
-        layer1 = unwrap(layer1_unwrap, 6, 6, 4, [-1, 8, 8, 32])
+        layer1 = unwrap(layer1_unwrap, 5, 5, 4, [-1, 12, 12, 32])
 
     #CNNIC layer #2
-    #with tf.variable_scope("cnnic_2"):
+    # with tf.variable_scope("cnnic_2"):
     #    layer2_wrap = wrap(layer1, 6, 6, 4, [-1, 8, 8, 32])
     #    layer2_unwrap = fcn(layer2_wrap, phase_train)
     #    layer2 = unwrap(layer2_unwrap, 6, 6, 4, [-1, 8, 8, 32])
@@ -75,19 +94,13 @@ def model(x):
     #CNNIC layer #3
     with tf.variable_scope("cnnic_3"):
         layer3_wrap = wrap(pool1, 4, 4, 2, [-1, 8, 8, 32])
-        layer3_unwrap = fcn(layer3_wrap, phase_train)
-        layer3 = unwrap(layer3_unwrap, 4, 4, 2, [-1, 8, 8, 32])
-
-    #Pooling layer
-    pool2 = tf.layers.average_pooling2d(inputs=layer3, pool_size=[4, 4], strides=2)
-
-    # Dense layer
-    pool2_flat = tf.reshape(pool2, [-1, 6 * 6 * 32])
-    dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(inputs=dense, rate=RATE_DROPOUT, training=phase_train)
+        layer3 = small_cnn(layer3_wrap, phase_train)
+        layer3 = tf.reshape(layer3, [4, 4, -1, 64])
+        layer3 = tf.transpose(layer3, [2, 0, 1, 3])
 
     # Logits layer
-    logits = tf.layers.dense(inputs=dropout, units=10)
+    logits = tf.layers.separable_conv2d(layer3, 10, [4, 4])
+    logits = tf.reshape(logits, [-1, 10])
 
     return logits, phase_train
 
