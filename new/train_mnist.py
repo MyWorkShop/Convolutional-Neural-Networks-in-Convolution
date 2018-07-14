@@ -4,10 +4,90 @@ from __future__ import print_function
 
 # Imports
 import tensorflow as tf
+import numpy as np
 import time
 
 
-def small_cnn(x, phase_train, location_labels):
+def wrap(x, m, n, stride, shape):
+    slicing = tf.TensorArray('float32', m * n)
+    for j in range(m):
+        for k in range(n):
+            slicing = slicing.write(j * n + k,
+                                    tf.slice(x, [0, j * stride, k * stride, 0],
+                                             shape))
+    sliced = tf.reshape(slicing.concat(), shape)
+    slicing.close().mark_used()
+    return sliced
+
+
+def unwrap(x, m, n, stride, shape):
+    adding = tf.TensorArray('float32', m * n)
+    to_split = tf.reshape(x, tf.concat([[m * n], shape], 0))
+    split = tf.TensorArray('float32', m * n).unstack(to_split)
+    for j in range(m):
+        for k in range(n):
+            adding = adding.write(
+                j * n + k,
+                tf.pad(
+                    split.read(j * n + k),
+                    [[0, 0], [j * stride, (m - 1 - j) * stride],
+                     [k * stride, (n - 1 - k) * stride], [0, 0]]))
+    split.close().mark_used()
+    added = tf.reduce_sum(adding.stack(), 0)
+    adding.close().mark_used()
+    return added
+
+
+def fcn(x, phase_train):
+    # Convolutional layer #1
+    conv1 = tf.layers.conv2d(
+        inputs=x,
+        filters=32,
+        kernel_size=[5, 5],
+        padding="valid",
+        activation=tf.nn.relu)
+    conv1_dropout = tf.layers.dropout(
+        inputs=conv1, rate=RATE_DROPOUT, training=phase_train)
+
+    # Convolutional layer #2
+    conv2 = tf.layers.conv2d(
+        inputs=conv1_dropout,
+        filters=32,
+        kernel_size=[5, 5],
+        padding="valid",
+        activation=tf.nn.relu)
+    return conv2
+
+
+def coord_layer(x):
+    size = [x.get_shape().as_list()[1], x.get_shape().as_list()[2]]
+    layer1 = []
+    layer2 = []
+    for i in range(size[0]):
+        layer1.append(
+            tf.constant(
+                value=(np.ones([size[1]]) * i - size[0] / 2.) / size[0] / 2.,
+                shape=[size[1]],
+                dtype=tf.float32))
+    for i in range(size[1]):
+        layer2.append(
+            tf.constant(
+                value=(np.ones([size[0]]) * i - size[1] / 2.) / size[1] / 2.,
+                shape=[size[0]],
+                dtype=tf.float32))
+    layer1 = tf.stack(layer1, 0)
+    layer1 = tf.reshape(layer1, size)
+    layer2 = tf.transpose(tf.reshape(tf.concat(layer2, 0), np.transpose(size)))
+    layer = tf.expand_dims(tf.stack([layer1, layer2], axis=2), 0)
+    layer = tf.tile(layer, [tf.shape(x)[0], 1, 1, 1])
+    xstack = tf.unstack(x, axis=3)
+    lstack = tf.unstack(layer, axis=3)
+    x = tf.stack(xstack + lstack, axis=3)
+    print(x)
+    return x
+
+
+def small_cnn(x, phase_train):
     # Convolutional Layer #1
     conv1 = tf.layers.conv2d(
         inputs=x,
@@ -15,7 +95,6 @@ def small_cnn(x, phase_train, location_labels):
         kernel_size=[5, 5],
         padding="same",
         activation=tf.nn.relu)
-
     # Convolutional Layer #2
     conv2 = tf.layers.conv2d(
         inputs=conv1,
@@ -47,7 +126,6 @@ def small_cnn(x, phase_train, location_labels):
         inputs=tf.reshape(pool2, [-1, 4 * 4 * 32]),
         rate=0.,
         training=phase_train)
-    pool2_flat = tf.concat([pool2_flat, location_labels], 1)
     dense = tf.layers.dense(
         inputs=pool2_flat, units=1024, activation=tf.nn.relu)
     dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=phase_train)
@@ -57,6 +135,7 @@ def small_cnn(x, phase_train, location_labels):
 
     return tf.layers.dropout(inputs=logits, rate=0.4, training=phase_train)
 
+
 def cnnic(x):
     phase_train = tf.placeholder(tf.bool)
 
@@ -64,30 +143,22 @@ def cnnic(x):
     n = 5
     stride = 3
     x = tf.reshape(x, [-1, 28, 28, 1])
+    x = coord_layer(x)
+    # cords = tf.cond(phase_train, lambda: tf.tile(x, multiples=[100, 1, 1, 1]),
+    # lambda: tf.tile(x, multiples=[50, 1, 1, 1]))
+    print('cords: {}'.format(x))
 
     #Input of CNNIC
     slicing = tf.TensorArray('float32', m * n)
-    locations = []
-    location_template = []
-    for i in range(0, m * n):
-        location_template.append(0.)
     for j in range(m):
         for k in range(n):
-            locations.append(location_template.copy())
-            locations[-1][j * k] = 1.
-            print('Location Update: {}'.format(locations))
             slicing = slicing.write(j * n + k,
                                     tf.slice(x, [0, j * stride, k * stride, 0],
-                                             [-1, 16, 16, 1]))
-    scn_input = tf.reshape(slicing.concat(), [-1, 16, 16, 1])
+                                             [-1, 16, 16, 3]))
+    scn_input = tf.reshape(slicing.concat(), [-1, 16, 16, 3])
     slicing.close().mark_used()
-    location_tensors = tf.constant(locations)
-    location_tensors = tf.cond(
-        phase_train, lambda: tf.tile(location_tensors, tf.constant([100, 1])),
-        lambda: tf.tile(location_tensors, tf.constant([50, 1])))
-    location_tensors = tf.reshape(location_tensors, [-1, m * n])
 
-    scn_output_raw = small_cnn(scn_input, phase_train, location_tensors)
+    scn_output_raw = small_cnn(scn_input, phase_train)
     scn_output = tf.reshape(scn_output_raw, [m * n, -1, 10])
     cnnic_output = tf.reduce_mean(scn_output, 0)
 
