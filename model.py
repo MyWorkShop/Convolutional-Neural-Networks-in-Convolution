@@ -149,22 +149,23 @@ def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):
         mse_indv = []
         output = None
 
-        # scn_inputs = tf.unstack(scn_inputs, m * n, 3)
+        recurrent=weight_variable([bs,rec_len])
+        scn_inputs = tf.unstack(scn_inputs, m * n, 3)
         for es in range(e_size):
             with tf.variable_scope('scn' + str(es)):
                 print('es{}--------------------------'.format(es))
-                # for scn_input in scn_inputs:
-                    # scn_input = tf.expand_dims(scn_input, 3)
-                o = small_cnn(
-                    scn_inputs,
-                    keep_prob,
-                    phase_train,
-                    name='scn' + str(es),
-                    reuse=False)
-                if output == None:
-                    output = o
-                else:
-                    output += o
+                for scn_input in scn_inputs:
+                    scn_input = tf.expand_dims(scn_input, 3)
+                    o = small_cnn(
+                        scn_input,
+                        keep_prob,
+                        phase_train,
+                        name='scn' + str(es),
+                        reuse=tf.AUTO_REUSE)
+                    if output == None:
+                        output = o
+                    else:
+                        output += o
                 print('[ensemble_reshaped_output{}]: {}'.format(
                     es + 1, output))
                 print('es{}--------------------------'.format(es))
