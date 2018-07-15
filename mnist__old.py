@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 
 # Deopout rate
-RATE_DROPOUT = 0.6
+RATE_DROPOUT = 0.3
 
 def small_cnn(x, phase_train):
     # Convolutional Layer #1
@@ -29,7 +29,7 @@ def small_cnn(x, phase_train):
     conv2_dropout = tf.layers.dropout(inputs=conv2, rate=RATE_DROPOUT, training=phase_train)
 
     # Pooling Layer #1
-    pool1 = tf.layers.max_pooling2d(inputs=conv2_dropout, pool_size=[2, 2], strides=2)
+    pool1 = tf.layers.average_pooling2d(inputs=conv2_dropout, pool_size=[2, 2], strides=2)
 
     # Convolutional Layer #3
     conv3 = tf.layers.conv2d(
@@ -40,17 +40,17 @@ def small_cnn(x, phase_train):
         activation=tf.nn.relu)
     conv3_dropout = tf.layers.dropout(inputs=conv3, rate=RATE_DROPOUT, training=phase_train)
     
-    # Convolutional Layer #4
-    conv4 = tf.layers.conv2d(
-        inputs=conv3_dropout,
-        filters=64,
-        kernel_size=[3, 3],
-        padding="same",
-        activation=tf.nn.relu)
-    conv4_dropout = tf.layers.dropout(inputs=conv4, rate=RATE_DROPOUT, training=phase_train)
+    # # Convolutional Layer #4
+    # conv4 = tf.layers.conv2d(
+    #     inputs=conv3_dropout,
+    #     filters=64,
+    #     kernel_size=[3, 3],
+    #     padding="same",
+    #     activation=tf.nn.relu)
+    # conv4_dropout = tf.layers.dropout(inputs=conv4, rate=RATE_DROPOUT, training=phase_train)
 
     # Pooling Layer #2
-    pool2 = tf.layers.max_pooling2d(inputs=conv4_dropout, pool_size=[2, 2], strides=2)
+    pool2 = tf.layers.average_pooling2d(inputs=conv3_dropout, pool_size=[2, 2], strides=2)
 
     # Dense Layer
     pool2_flat = tf.reshape(pool2, [-1, 4 * 4 * 64])
@@ -107,10 +107,13 @@ def main(unused_argv):
     #Accuracy
     correct_prediction = tf.equal(tf.argmax(y_model, 1), output_data)
     correct_prediction = tf.cast(correct_prediction, tf.float32)
-
     accuracy = tf.reduce_mean(correct_prediction)
 
-    with tf.Session() as sess:
+    #Congifg
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+
+    with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
         rt = 1e-3

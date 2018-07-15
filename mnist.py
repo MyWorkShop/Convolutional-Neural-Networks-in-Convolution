@@ -149,10 +149,13 @@ def main(unused_argv):
     #Accuracy
     correct_prediction = tf.equal(tf.argmax(y_model, 1), output_data)
     correct_prediction = tf.cast(correct_prediction, tf.float32)
-
     accuracy = tf.reduce_mean(correct_prediction)
 
-    with tf.Session() as sess:
+    #Congifg
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+
+    with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         t0 = time.clock()
         rt = 1e-3
