@@ -66,13 +66,13 @@ def coord_layer(x):
     for i in range(size[0]):
         layer1.append(
             tf.constant(
-                value=(np.ones([size[1]]) * i - size[0] / 2.) / size[0] / 2.,
+                value=(np.ones([size[1]]) * i - size[0] / 2.) / size[0] * 2.,
                 shape=[size[1]],
                 dtype=tf.float32))
     for i in range(size[1]):
         layer2.append(
             tf.constant(
-                value=(np.ones([size[0]]) * i - size[1] / 2.) / size[1] / 2.,
+                value=(np.ones([size[0]]) * i - size[1] / 2.) / size[1] * 2.,
                 shape=[size[0]],
                 dtype=tf.float32))
     layer1 = tf.stack(layer1, 0)
@@ -89,51 +89,53 @@ def coord_layer(x):
 
 def small_cnn(x, phase_train):
     # Convolutional Layer #1
-    conv1 = tf.layers.conv2d(
+    x = tf.layers.conv2d(
         inputs=x,
         filters=32,
         kernel_size=[5, 5],
         padding="same",
         activation=tf.nn.relu)
+    x = coord_layer(x)
     # Convolutional Layer #2
-    conv2 = tf.layers.conv2d(
-        inputs=conv1,
+    x = tf.layers.conv2d(
+        inputs=x,
         filters=32,
         kernel_size=[5, 5],
         padding="same",
         activation=tf.nn.relu)
-
+    x = coord_layer(x)
     # Pooling Layer #1
-    pool1 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+    x = tf.layers.max_pooling2d(inputs=x, pool_size=[2, 2], strides=2)
 
     # Convolutional Layer #3 #4 and Pooling Layer #2
-    conv3 = tf.layers.conv2d(
-        inputs=pool1,
+    x = tf.layers.conv2d(
+        inputs=x,
         filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
-    conv4 = tf.layers.conv2d(
-        inputs=conv3,
+    x = coord_layer(x)
+    x = tf.layers.conv2d(
+        inputs=x,
         filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
-    pool2 = tf.layers.max_pooling2d(inputs=conv4, pool_size=[2, 2], strides=2)
+    x = tf.layers.max_pooling2d(inputs=x, pool_size=[2, 2], strides=2)
 
     # Dense Layer
-    pool2_flat = tf.layers.dropout(
-        inputs=tf.reshape(pool2, [-1, 4 * 4 * 32]),
+    x = tf.layers.dropout(
+        inputs=tf.reshape(x, [-1, 4 * 4 * 32]),
         rate=0.,
         training=phase_train)
-    dense = tf.layers.dense(
-        inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=phase_train)
+    x = tf.layers.dense(
+        inputs=x, units=1024, activation=tf.nn.relu)
+    x = tf.layers.dropout(inputs=x, rate=0.4, training=phase_train)
 
     # Logits Layer
-    logits = tf.layers.dense(inputs=dropout, units=10)
+    x = tf.layers.dense(inputs=x, units=10)
 
-    return tf.layers.dropout(inputs=logits, rate=0.4, training=phase_train)
+    return x
 
 
 def cnnic(x):
