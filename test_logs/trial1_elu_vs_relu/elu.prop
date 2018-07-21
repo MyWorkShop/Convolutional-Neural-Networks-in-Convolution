@@ -1,6 +1,0 @@
-i=3000
-i%100
-lr=0.001
-change to original network(commit cb20ba6efd19de5cd1c6c7dd7091f612f3928dbd): 
-1. All Activation in small_cnn[relu=>elu]
-2. Reduce i[150000=>3000]

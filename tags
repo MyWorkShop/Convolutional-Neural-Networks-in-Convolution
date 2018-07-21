@@ -1,0 +1,184 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+CNN	cnn_mnist_control.py	/^def CNN(x, reuse=False):$/;"	f
+CNN	feature_map_test/cnn_mnist_control.py	/^def CNN(x, reuse=False):$/;"	f
+DNN	dnn_mnist_control.py	/^def DNN(x, reuse=False):$/;"	f
+FLAGS	cnn_mnist_control.py	/^FLAGS = None$/;"	v
+FLAGS	configs.py	/^FLAGS = None$/;"	v
+FLAGS	dnn_mnist_control.py	/^FLAGS = None$/;"	v
+FLAGS	feature_map_test/cnn_mnist_control.py	/^FLAGS = None$/;"	v
+FLAGS	feature_map_test/configs.py	/^FLAGS = None$/;"	v
+FLAGS	feature_map_test/maps/cmp.py	/^FLAGS = None$/;"	v
+FLAGS	train_mnist_tflearn.py	/^FLAGS = None$/;"	v
+accuracy	feature_map_test/model.py	/^    accuracy = tf.reduce_mean(correct_prediction)$/;"	v
+accuracy	model.py	/^    accuracy = tf.reduce_mean(correct_prediction)$/;"	v
+aug	configs.py	/^aug = False$/;"	v
+aug	feature_map_test/configs.py	/^aug = False$/;"	v
+avg_pool	train_mnist_tflearn.py	/^def avg_pool(x, m, n):$/;"	f
+batch_norm	feature_map_test/model.py	/^def batch_norm(x, phase_train, n_out=1):$/;"	f
+batch_norm	model.py	/^def batch_norm(x, phase_train, n_out=1):$/;"	f
+bias_variable	feature_map_test/model.py	/^def bias_variable(shape):$/;"	f
+bias_variable	model.py	/^def bias_variable(shape):$/;"	f
+bias_variable	train_mnist_tflearn.py	/^def bias_variable(shape):$/;"	f
+bias_variable_	feature_map_test/model.py	/^def bias_variable_(shape, id, j, k, initializer=tf.constant_initializer(0)):$/;"	f
+bias_variable_	model.py	/^def bias_variable_(shape, id, j, k, initializer=tf.constant_initializer(0)):$/;"	f
+bias_variable_	train_mnist_tflearn.py	/^def bias_variable_(shape, id, j, k):$/;"	f
+bs	configs.py	/^bs = 96$/;"	v
+bs	feature_map_test/configs.py	/^bs = 48$/;"	v
+cmp	feature_map_test/maps/cmp.py	/^def cmp(img1, img2):$/;"	f
+config	configs.py	/^    config = tf.ConfigProto($/;"	v
+config	feature_map_test/configs.py	/^    config = tf.ConfigProto($/;"	v
+conv2d	feature_map_test/model.py	/^def conv2d(inputs,$/;"	f
+conv2d	model.py	/^def conv2d(inputs,$/;"	f
+conv2d	train_mnist_tflearn.py	/^def conv2d(x, W):$/;"	f
+conv2d_	train_mnist_tflearn.py	/^def conv2d_(x, W):$/;"	f
+correct_prediction	feature_map_test/model.py	/^    correct_prediction = tf.cast(correct_prediction, tf.float32)$/;"	v
+correct_prediction	feature_map_test/model.py	/^    correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))$/;"	v
+correct_prediction	model.py	/^    correct_prediction = tf.cast(correct_prediction, tf.float32)$/;"	v
+correct_prediction	model.py	/^    correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))$/;"	v
+cross_entropy	feature_map_test/model.py	/^    cross_entropy = tf.nn.softmax_cross_entropy_with_logits($/;"	v
+cross_entropy	feature_map_test/model.py	/^    cross_entropy = tf.reduce_mean($/;"	v
+cross_entropy	model.py	/^    cross_entropy = tf.nn.softmax_cross_entropy_with_logits($/;"	v
+cross_entropy	model.py	/^    cross_entropy = tf.reduce_mean(cross_entropy)$/;"	v
+custom_loss	configs.py	/^custom_loss = .0$/;"	v
+default	cnn_mnist_control.py	/^        default='\/tmp\/tensorflow\/mnist\/input_data',$/;"	v
+default	dnn_mnist_control.py	/^        default='\/tmp\/tensorflow\/mnist\/input_data',$/;"	v
+default	feature_map_test/cnn_mnist_control.py	/^        default='\/tmp\/tensorflow\/mnist\/input_data',$/;"	v
+default	feature_map_test/train_mnist.py	/^        default='\/tmp\/tensorflow\/mnist\/input_data',$/;"	v
+default	train_mnist.py	/^        default='\/tmp\/tensorflow\/mnist\/input_data',$/;"	v
+default	train_mnist_tflearn.py	/^        default='\/tmp\/tensorflow\/mnist\/input_data',$/;"	v
+dense	feature_map_test/model.py	/^def dense(x,$/;"	f
+dense	model.py	/^def dense(x,$/;"	f
+depthwise_conv2d	feature_map_test/model.py	/^def depthwise_conv2d(inputs, W, scope_name=None):$/;"	f
+depthwise_conv2d	feature_map_test/model.py	/^def depthwise_conv2d(x, W):$/;"	f
+depthwise_conv2d	model.py	/^def depthwise_conv2d(inputs, W, scope_name=None):$/;"	f
+depthwise_conv2d	model.py	/^def depthwise_conv2d(x, W):$/;"	f
+dir1	feature_map_test/maps/cmp.py	/^dir1 = None$/;"	v
+dir2	feature_map_test/maps/cmp.py	/^dir2 = None$/;"	v
+dry_run	configs.py	/^dry_run = False$/;"	v
+dry_run	feature_map_test/configs.py	/^dry_run = False$/;"	v
+e_size	configs.py	/^e_size = 2  # Ensemble size$/;"	v
+e_size	feature_map_test/configs.py	/^e_size = 2  # Ensemble size$/;"	v
+e_size	feature_map_test/model.py	/^        e_size=e_size,$/;"	v
+e_size	model.py	/^        e_size=e_size,$/;"	v
+get_img	feature_map_test/maps/cmp.py	/^def get_img(path):$/;"	f
+graph_location	configs.py	/^    graph_location = '\/tmp\/saved_models\/' + run_description + str(time.time())$/;"	v
+graph_location	configs.py	/^graph_location = '\/tmp\/saved_models\/' + run_description  #+ str(time.time())$/;"	v
+graph_location	feature_map_test/configs.py	/^    graph_location = '\/tmp\/saved_models\/' + run_description + str(time.time())$/;"	v
+graph_location	feature_map_test/configs.py	/^graph_location = '\/tmp\/saved_models\/' + run_description  #+ str(time.time())$/;"	v
+help	cnn_mnist_control.py	/^        help='Directory for storing input data')$/;"	v
+help	dnn_mnist_control.py	/^        help='Directory for storing input data')$/;"	v
+help	feature_map_test/cnn_mnist_control.py	/^        help='Directory for storing input data')$/;"	v
+help	feature_map_test/train_mnist.py	/^        help='Directory for storing input data')$/;"	v
+help	train_mnist.py	/^        help='Directory for storing input data')$/;"	v
+help	train_mnist_tflearn.py	/^        help='Directory for storing input data')$/;"	v
+img1	feature_map_test/maps/cmp.py	/^        img1 = get_img('.\/scn1_conv1\/' + img1_name)$/;"	v
+img2	feature_map_test/maps/cmp.py	/^        img2 = get_img('.\/scn2_conv1\/' + img2_name)$/;"	v
+img_min	feature_map_test/maps/cmp.py	/^            img_min = [img1, img2]$/;"	v
+img_min	feature_map_test/maps/cmp.py	/^    img_min = None$/;"	v
+keep_prob	feature_map_test/model.py	/^        keep_prob=keep_prob,$/;"	v
+keep_prob	feature_map_test/model.py	/^    keep_prob = tf.placeholder(tf.float32)$/;"	v
+keep_prob	model.py	/^        keep_prob=keep_prob,$/;"	v
+keep_prob	model.py	/^    keep_prob = tf.placeholder(tf.float32)$/;"	v
+load_data	feature_map_test/maps/cmp.py	/^def load_data():$/;"	f
+lsuv	feature_map_test/model.py	/^def lsuv(layer, w):$/;"	f
+lsuv	model.py	/^def lsuv(layer, w):$/;"	f
+main	cnn_mnist_control.py	/^def main(_):$/;"	f
+main	dnn_mnist_control.py	/^def main(_):$/;"	f
+main	feature_map_test/cnn_mnist_control.py	/^def main(_):$/;"	f
+main	feature_map_test/train_mnist.py	/^def main(_):$/;"	f
+main	train_mnist.py	/^def main(_):$/;"	f
+main	train_mnist_tflearn.py	/^def main(_):$/;"	f
+max_pool	train_mnist_tflearn.py	/^def max_pool(x, m, n):$/;"	f
+mean_var_with_update	feature_map_test/model.py	/^        def mean_var_with_update():$/;"	f	function:batch_norm
+mean_var_with_update	model.py	/^        def mean_var_with_update():$/;"	f	function:batch_norm
+min_	feature_map_test/maps/cmp.py	/^            min_ = [img1_name, img2_name]$/;"	v
+min_	feature_map_test/maps/cmp.py	/^    min_ = None$/;"	v
+mnist	configs.py	/^mnist = input_data.read_data_sets('MNIST_data', one_hot=True)$/;"	v
+mnist	feature_map_test/configs.py	/^mnist = input_data.read_data_sets('MNIST_data', one_hot=True)$/;"	v
+mse	feature_map_test/maps/cmp.py	/^def mse(imageA, imageB):$/;"	f
+num	feature_map_test/model.py	/^        num=1,$/;"	v
+num	model.py	/^        num=1,$/;"	v
+num_conv	feature_map_test/model.py	/^        num_conv=10,$/;"	v
+num_conv	model.py	/^        num_conv=10,$/;"	v
+num_min	feature_map_test/maps/cmp.py	/^            num_min = mse(img1, img2)$/;"	v
+num_min	feature_map_test/maps/cmp.py	/^    num_min = 999999$/;"	v
+parser	cnn_mnist_control.py	/^    parser = argparse.ArgumentParser()$/;"	v
+parser	dnn_mnist_control.py	/^    parser = argparse.ArgumentParser()$/;"	v
+parser	feature_map_test/cnn_mnist_control.py	/^    parser = argparse.ArgumentParser()$/;"	v
+parser	feature_map_test/train_mnist.py	/^    parser = argparse.ArgumentParser()$/;"	v
+parser	train_mnist.py	/^    parser = argparse.ArgumentParser()$/;"	v
+parser	train_mnist_tflearn.py	/^    parser = argparse.ArgumentParser()$/;"	v
+phase_train	feature_map_test/model.py	/^        phase_train=phase_train)$/;"	v
+phase_train	feature_map_test/model.py	/^    phase_train = tf.placeholder(dtype=tf.bool)$/;"	v
+phase_train	model.py	/^        phase_train=phase_train)$/;"	v
+phase_train	model.py	/^    phase_train = tf.placeholder(dtype=tf.bool)$/;"	v
+rate	feature_map_test/model.py	/^    rate = tf.placeholder(tf.float32)$/;"	v
+rate	model.py	/^    rate = tf.placeholder(tf.float32)$/;"	v
+recover_location	configs.py	/^    recover_location = '\/tmp\/saved_models\/' + run_description + '\/'$/;"	v
+recover_location	configs.py	/^recover_location = '\/tmp\/saved_models\/' + run_description + '\/'$/;"	v
+recover_location	feature_map_test/configs.py	/^    recover_location = '\/tmp\/saved_models\/' + run_description + '\/'$/;"	v
+recover_location	feature_map_test/configs.py	/^recover_location = '\/tmp\/saved_models\/' + run_description + '\/'$/;"	v
+reg_losses	feature_map_test/model.py	/^    reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)$/;"	v
+reg_losses	model.py	/^    reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)$/;"	v
+regularizer	configs.py	/^regularizer = None  #tf.contrib.layers.l2_regularizer(0.05)$/;"	v
+rt	configs.py	/^rt = 1e-3$/;"	v
+rt	feature_map_test/configs.py	/^rt = 1e-3$/;"	v
+run_description	configs.py	/^    run_description = 'Dry_' + run_description$/;"	v
+run_description	configs.py	/^run_description = 'bn_swish_conv2_fc256_128_dp3_0.5_bs' + str($/;"	v
+run_description	feature_map_test/configs.py	/^    run_description = 'Dry_' + run_description$/;"	v
+run_description	feature_map_test/configs.py	/^run_description = 'feature_map_cmp' + str($/;"	v
+save_location	configs.py	/^    save_location = '\/tmp\/saved_models\/' + run_description + '\/saved'$/;"	v
+save_location	configs.py	/^save_location = '\/tmp\/saved_models\/' + run_description + '\/saved'$/;"	v
+save_location	feature_map_test/configs.py	/^    save_location = '\/tmp\/saved_models\/' + run_description + '\/saved'$/;"	v
+save_location	feature_map_test/configs.py	/^save_location = '\/tmp\/saved_models\/' + run_description + '\/saved'$/;"	v
+saver	feature_map_test/model.py	/^    saver = tf.train.Saver()$/;"	v
+saver	model.py	/^    saver = tf.train.Saver()$/;"	v
+scscn	feature_map_test/model.py	/^def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):$/;"	f
+scscn	model.py	/^def scscn(x, num, num_conv, e_size=1, keep_prob=None, phase_train=None):$/;"	f
+scscn	train_mnist_tflearn.py	/^def scscn(x, num, num_conv):$/;"	f
+sess_config	configs.py	/^    sess_config = config$/;"	v
+sess_config	feature_map_test/configs.py	/^    sess_config = config$/;"	v
+show_img	feature_map_test/maps/cmp.py	/^def show_img(imgs):$/;"	f
+small_cnn	feature_map_test/model.py	/^def small_cnn(x,$/;"	f
+small_cnn	model.py	/^def small_cnn(x,$/;"	f
+small_cnn	train_mnist_tflearn.py	/^def small_cnn(x, num_conv, id, j, k, reuse, keep_prob):$/;"	f
+summary_op	feature_map_test/model.py	/^    summary_op = tf.summary.merge_all()$/;"	v
+summary_op	model.py	/^    summary_op = tf.summary.merge_all()$/;"	v
+t_max	configs.py	/^t_max = 30$/;"	v
+t_max	feature_map_test/configs.py	/^t_max = 30$/;"	v
+tol	configs.py	/^tol = 0.2$/;"	v
+tol	feature_map_test/configs.py	/^tol = 0.2$/;"	v
+train_step	feature_map_test/model.py	/^    train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)$/;"	v
+train_step	model.py	/^    train_step = tf.train.AdamOptimizer(rate).minimize(cross_entropy)$/;"	v
+train_step_mmntm	feature_map_test/model.py	/^    train_step_mmntm = tf.train.MomentumOptimizer($/;"	v
+train_step_mmntm	model.py	/^    train_step_mmntm = tf.train.MomentumOptimizer($/;"	v
+type	cnn_mnist_control.py	/^        type=str,$/;"	v
+type	dnn_mnist_control.py	/^        type=str,$/;"	v
+type	feature_map_test/cnn_mnist_control.py	/^        type=str,$/;"	v
+type	feature_map_test/train_mnist.py	/^        type=str,$/;"	v
+type	train_mnist.py	/^        type=str,$/;"	v
+type	train_mnist_tflearn.py	/^        type=str,$/;"	v
+use_bn	configs.py	/^use_bn = True$/;"	v
+use_bn	feature_map_test/configs.py	/^use_bn = True$/;"	v
+use_dws	feature_map_test/configs.py	/^use_dws = False$/;"	v
+use_lsuv	configs.py	/^use_lsuv = False$/;"	v
+use_lsuv	feature_map_test/configs.py	/^use_lsuv = False$/;"	v
+values_to_log	configs.py	/^values_to_log = []$/;"	v
+values_to_log	feature_map_test/configs.py	/^values_to_log = []$/;"	v
+weight_variable	feature_map_test/model.py	/^def weight_variable(shape):$/;"	f
+weight_variable	model.py	/^def weight_variable(shape):$/;"	f
+weight_variable	train_mnist_tflearn.py	/^def weight_variable(shape):$/;"	f
+weight_variable_	feature_map_test/model.py	/^def weight_variable_(shape, id, j, k, initializer=tf.orthogonal_initializer()):$/;"	f
+weight_variable_	model.py	/^def weight_variable_(shape, id, j, k, initializer=tf.orthogonal_initializer()):$/;"	f
+weight_variable_	train_mnist_tflearn.py	/^def weight_variable_(shape, id, j, k):$/;"	f
+writer	feature_map_test/model.py	/^    writer = tf.summary.FileWriter($/;"	v
+writer	model.py	/^    writer = tf.summary.FileWriter($/;"	v
+x	feature_map_test/model.py	/^    x = tf.placeholder(tf.float32, [None, 784], name='input')$/;"	v
+x	model.py	/^    x = tf.placeholder(tf.float32, [None, 784], name='input')$/;"	v
+y_	feature_map_test/model.py	/^    y_ = tf.placeholder(tf.float32, [None, 10], name='validation')$/;"	v
+y_	model.py	/^    y_ = tf.placeholder(tf.float32, [None, 10], name='validation')$/;"	v
